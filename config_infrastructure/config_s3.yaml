@@ -1,7 +1,0 @@
-s3_buckets:
-  input:
-    endpoint_url: https://object-store.os-api.cci1.ecmwf.int
-    name: flexprep-output
-  output:
-    endpoint_url: https://object-store.os-api.cci1.ecmwf.int
-    name: flexpart-output

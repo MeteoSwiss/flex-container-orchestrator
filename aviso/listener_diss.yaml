@@ -12,7 +12,7 @@ listeners:
       - type: command
         working_dir: $HOME
         command: >
-          .aviso/my_docker_script.sh \
+          python3 .aviso/my_docker_script.py \
             --step "${request.step}" \
             --date "${request.date}" \
             --time "${request.time}" \

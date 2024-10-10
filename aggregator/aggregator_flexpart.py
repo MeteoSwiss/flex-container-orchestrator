@@ -202,7 +202,6 @@ def main():
     # Connect to the database
     conn = connect_db(DB_PATH)
 
-    # Generate forecast reference time datetime object
     frt_dt = datetime.datetime.strptime(f"{DATE}{int(TIME):02d}00", "%Y%m%d%H%M")
 
     # Check if the specific row is processed
@@ -243,47 +242,15 @@ def main():
     processed_items = fetch_processed_items(conn, frt_s)
 
     # Iterate over all_list_ltf to determine if Flexpart should be launched
+    configs = []
     for i, flexpart_run in enumerate(all_list_ltf):
         tstart = all_list_lt[i][0]
         tend = all_list_lt[i][-1]
         if all(item in processed_items for item in flexpart_run):
+            config = define_config(tstart, tend)
+            configs.append(config)
 
-            configuration = define_config(tstart, tend)
-
-            with open('config_flexpart.yaml', 'r') as file:
-                config = yaml.safe_load(file)
-
-            input_bucket_name = config['s3_buckets']['input']['name']
-            input_bucket_url = config['s3_buckets']['input']['endpoint_url']
-            output_bucket_name = config['s3_buckets']['output']['name']
-            output_bucket_url = config['s3_buckets']['output']['endpoint_url']
-
-            # Create a list of environment variables for Podman
-            env_vars = [f"-e {key}={value}" for key, value in configuration.items()]
-
-            env_vars.append(f"-e INPUT_S3_NAME={input_bucket_name}")
-            env_vars.append(f"-e INPUT_S3_URL={input_bucket_url}")
-            env_vars.append(f"-e OUTPUT_S3_NAME={output_bucket_name}")
-            env_vars.append(f"-e OUTPUT_S3_URL={output_bucket_url}")
-
-            # Define the command
-            command = ['/bin/sh', '-c', 'ulimit -a && bash entrypoint.sh']
-
-            # Join the command list to make it usable in the Docker command
-            command_str = ' '.join(command)
-
-            podman_command = f"docker run {' '.join(env_vars)} --rm container-registry.meteoswiss.ch/flexpart-poc/flexpart:containerize {command_str}"
-
-            # Log the command (optional)
-            print(f"Running: {podman_command}")
-
-            # Execute the Podman command
-            subprocess.run(podman_command, shell=True, check=True)
-        else:
-            logging.info(
-                f"NOT ENOUGH DATA TO LAUNCH FLEXPART FROM {tstart.strftime('%m/%d/%Y, %H:%M')} "
-                f"TO {tend.strftime('%m/%d/%Y, %H:%M')}"
-            )
+    print(json.dumps(configs))
 
     # Close the database connection
     conn.close()

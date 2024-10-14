@@ -1,0 +1,63 @@
+[[tool.poetry.source]]
+name = "meteoswiss"
+url = "https://service.meteoswiss.ch/nexus/repository/python-all/simple"
+
+[tool.poetry]
+name = "flex-container-orchestrator"
+version = "1.0"
+description = "Service listening to Aviso and launching Flexpart-IFS"
+authors = ["Nina Burgdorfer <nina.burgdorfer@meteoswiss.ch>"]
+readme = "README.rst"
+include = ["HISTORY.rst"]
+
+
+[tool.poetry.dependencies]
+python = "~3.12"
+mchpy = { extras = ["fastapi"], version = "^2.1.1" }
+
+[tool.poetry.group.dev.dependencies]
+mypy = "*"
+pydata-sphinx-theme = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+sphinx = "*"
+sphinx-autoapi = "*"
+yapf = "*"
+
+[tool.yapf]
+based_on_style = "pep8"
+column_limit = "120"
+
+[tool.pylint.master]
+disable = [
+    'C0114', # missing-module-docstring
+    'C0115', # missing-class-docstring
+    'C0116', # missing-function-docstring
+    'W0511', # fix me or to-do comments are already covered by SonarQube
+]
+
+[tool.pylint.basic]
+argument-naming-style = 'any'
+attr-naming-style = 'any'
+
+[tool.pylint.format]
+# Maximum number of lines in a module.
+max-line-length = 120
+
+[tool.pylint.design]
+# Minimum number of public methods for a class (see R0903).
+min-public-methods = 0
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# to avoid mypy errors when importing modules from commons
+# aka "module is installed, but missing library stubs or py.typed marker"
+module = ["mchpy.*"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

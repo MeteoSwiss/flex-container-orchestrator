@@ -1,0 +1,10 @@
+logging:
+  root_log_level: INFO
+  # When running in k8s, use JSON logger via env setting
+  # formatter: json
+  formatter: "standard"
+  child_log_levels:
+    mchpy: DEBUG
+    mchpy.audit.http_audit: INFO
+main:
+  app_name: flex-container-orchestrator

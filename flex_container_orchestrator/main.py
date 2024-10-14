@@ -1,31 +1,19 @@
-"""" Define application """
 import os
+import logging
+from flex_container_orchestrator.services import flexpart_service
+import argparse
 
-from mchpy.web import fastapi_app
-from flex_container_orchestrator.routers import greeting_router
+logger = logging.getLogger(__name__)
 
-_SERVICE_NAMESPACE = 'flex-container-orchestrator'
-_URL_PREFIX = f'/{_SERVICE_NAMESPACE}/api/v1'
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--date', required=True, help='Date parameter')
+    parser.add_argument('--location', required=True, help='Location parameter')
+    parser.add_argument('--time', required=True, help='Time parameter')
+    parser.add_argument('--step', required=True, help='Step parameter')
+    args = parser.parse_args()
 
-# Create the application instance
-app = fastapi_app.create(
-    title='flex-container-orchestrator',
-    description='Service listening to Aviso and launching Flexpart-IFS',
-    contact={
-        'name': 'Nina Burgdorfer',
-        'email': 'nina.burgdorfer@meteoswiss.ch',
-    },
-    version=os.getenv('VERSION') or '1.0.0',
-    base_path=f'/{_SERVICE_NAMESPACE}',
-    docs_url=f'/{_SERVICE_NAMESPACE}/swagger-ui.html',
-    openapi_url=f'/{_SERVICE_NAMESPACE}/openapi.json',
-    redoc_url=None,
-)
+    flexpart_service.launch_containers(args.date, args.location, args.time, args.step)
 
-# include routers
-app.include_router(greeting_router.router, prefix=_URL_PREFIX)
-
-# If we're running in standalone mode, run the application
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8080)
+if __name__ == "__main__":
+    main()

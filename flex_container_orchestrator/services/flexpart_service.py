@@ -1,5 +1,4 @@
 import subprocess
-import argparse
 import json
 import os
 import sys
@@ -18,7 +17,7 @@ def run_command(command, capture_output=False):
         logging.error(f"Command '{' '.join(command)}' failed with error: {e}")
         sys.exit(1)
 
-def main():
+def launch_containers(date, location, time, step):
     logging.basicConfig(level=logging.INFO)
 
     # Retrieve ECR login password and log in to Docker
@@ -41,22 +40,6 @@ def main():
     except subprocess.CalledProcessError as e:
         logging.error(f"Error logging in to Docker: {e}")
         sys.exit(1)
-
-    # Argument parsing
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--date', required=True, help='Date parameter')
-    parser.add_argument('--location', required=True, help='Location parameter')
-    parser.add_argument('--time', required=True, help='Time parameter')
-    parser.add_argument('--step', required=True, help='Step parameter')
-
-    args = parser.parse_args()
-
-    date = args.date
-    location = args.location
-    time = args.time
-    step = args.step
-
-    logging.info(f"Notification received for file {location}, date {date}, time {time}, step {step}")
 
     # Run pre-processing for Flexpart
     docker_image = "493666016161.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/flexpart_ifs/flexprep:2409.ee22f6c67c86b9f85185edb02924e6ab523fa0bc"

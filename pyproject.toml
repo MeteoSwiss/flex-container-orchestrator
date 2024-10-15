@@ -14,6 +14,7 @@ include = ["HISTORY.rst"]
 [tool.poetry.dependencies]
 python = "~3.12"
 mchpy = { extras = ["fastapi"], version = "^2.1.1" }
+boto3 = "^1.35.40"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "*"

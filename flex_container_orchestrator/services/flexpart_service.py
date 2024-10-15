@@ -42,7 +42,7 @@ def launch_containers(date, location, time, step):
         sys.exit(1)
 
     # Run pre-processing for Flexpart
-    docker_image = "493666016161.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/flexpart_ifs/flexprep:2409.ee22f6c67c86b9f85185edb02924e6ab523fa0bc"
+    docker_image = "493666016161.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/dispersionmodelling/flexpart-ifs/flexprep:2410.d02afb52a3021ad13aa734fc400e84026347ce7b"
     db_mount = os.path.expanduser('~/.sqlite/')
 
     if not os.path.exists(db_mount):

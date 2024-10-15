@@ -53,7 +53,7 @@ def launch_containers(date, location, time, step):
         docker_run_command = [
             "docker", "run",
             "--mount", f"type=bind,source={db_mount},destination=/src/db/",
-            "--env-file", ".env",
+            "--env-file", "flex_container_orchestrator/config/.env",
             docker_image,
             "--step", step,
             "--date", date,
@@ -67,7 +67,7 @@ def launch_containers(date, location, time, step):
         logging.error("Docker run processing failed.")
         sys.exit(1)
 
-    logging.info("Docker container processing executed successfully.")
+    logging.info("Pre-processing container executed successfully.")
 
     # ====== Second part: Run aggregator_flexpart.py ======
     db_path = os.path.expanduser('~/.sqlite/sqlite3-db')
@@ -78,7 +78,7 @@ def launch_containers(date, location, time, step):
 
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        aggregator_script_path = os.path.join(script_dir, '..', 'aggregator', 'aggregator_flexpart.py')
+        aggregator_script_path = os.path.join(script_dir, '..', 'domain', 'aggregator_flexpart.py')
 
         aggregator_command = [
             "python3", aggregator_script_path,
@@ -89,6 +89,9 @@ def launch_containers(date, location, time, step):
         ]
 
         output = run_command(aggregator_command, capture_output=True)
+        if not output:
+            logging.info("Flexpart can't be launched. Not enough pre-processed files. Exiting.")
+            sys.exit(0)
         try:
             configurations = json.loads(output.decode('utf-8'))
         except json.JSONDecodeError as e:

@@ -77,7 +77,7 @@ def is_row_processed(conn, forecast_ref_time, step):
         if result:
             return result[0] == 1
         else:
-            logging.warning(
+            logging.info(
                 f"No row found for forecast_ref_time={forecast_ref_time} and step={step}."
             )
             return False
@@ -187,7 +187,6 @@ def define_config(st: datetime.datetime, et: datetime.datetime):
 def main():
     args = parse_arguments()
 
-    # Initialize variables
     DATE = args.date
     TIME = args.time
     STEP = args.step

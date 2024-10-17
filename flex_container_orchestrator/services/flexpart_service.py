@@ -41,7 +41,7 @@ def launch_containers(date, location, time, step):
         logging.error(f"Error logging in to Docker: {e}")
         sys.exit(1)
 
-    # Run pre-processing for Flexpart
+    # ====== First part: Run pre-processing for Flexpart ======
     docker_image = "493666016161.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/dispersionmodelling/flexpart-ifs/flexprep:2410.d02afb52a3021ad13aa734fc400e84026347ce7b"
     db_mount = os.path.expanduser('~/.sqlite/')
 
@@ -51,7 +51,7 @@ def launch_containers(date, location, time, step):
 
     try:
         docker_run_command = [
-            "docker", "run",
+            "docker", "run", "--rm",
             "--mount", f"type=bind,source={db_mount},destination=/src/db/",
             "--env-file", "flex_container_orchestrator/config/.env",
             docker_image,

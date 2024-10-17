@@ -1,7 +1,7 @@
 """ Initializations """
 import os
 
-from mchpy.audit import logger
+from flex_container_orchestrator.config import logger
 from flex_container_orchestrator.config.service_settings import ServiceSettings
 
 CONFIG = ServiceSettings('settings.yaml', os.path.join(os.path.dirname(__file__), 'config'))

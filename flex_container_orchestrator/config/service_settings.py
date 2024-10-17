@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
-from mchpy.audit.logger import LoggingSettings
-from mchpy.config.base_settings import BaseServiceSettings
+from flex_container_orchestrator.config.logger import LoggingSettings
+from flex_container_orchestrator.config.base_settings import BaseServiceSettings
 
 
 class AppSettings(BaseModel):

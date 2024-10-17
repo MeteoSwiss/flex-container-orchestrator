@@ -5,6 +5,6 @@ logging:
   formatter: "standard"
   child_log_levels:
     mchpy: DEBUG
-    mchpy.audit.http_audit: INFO
+    flex_container_orechestrator.config.http_audit: INFO
 main:
   app_name: flex-container-orchestrator

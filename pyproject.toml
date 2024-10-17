@@ -13,6 +13,7 @@ boto3 = "^1.35.40"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.5.2"
 python-json-logger = "^2.0.7"
+awscli = "^1.35.8"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "*"

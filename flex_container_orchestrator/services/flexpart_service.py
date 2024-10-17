@@ -44,6 +44,7 @@ def launch_containers(date, location, time, step):
     # ====== First part: Run pre-processing for Flexpart ======
     docker_image = "493666016161.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/dispersionmodelling/flexpart-ifs/flexprep:2410.d02afb52a3021ad13aa734fc400e84026347ce7b"
     db_mount = os.path.expanduser('~/.sqlite/')
+    env_file_path = os.path.expanduser('~/flex-container-orchestrator/flex_container_orchestrator/config/.env')
 
     if not os.path.exists(db_mount):
         logging.error(f"SQLite database directory {db_mount} does not exist.")
@@ -53,7 +54,7 @@ def launch_containers(date, location, time, step):
         docker_run_command = [
             "docker", "run", "--rm",
             "--mount", f"type=bind,source={db_mount},destination=/src/db/",
-            "--env-file", "flex_container_orchestrator/config/.env",
+            "--env-file", env_file_path,
             docker_image,
             "--step", step,
             "--date", date,

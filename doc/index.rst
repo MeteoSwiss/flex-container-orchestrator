@@ -1,14 +1,13 @@
-flex-container-orchestrator documentation
-================================================
-
-Service listening to Aviso and launching Flexpart-IFS
+Welcome to flex-container-orchestrator
+=============================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    readme
-   autoapi/index
+   installation
+   usage
    history
 
 Indices and tables

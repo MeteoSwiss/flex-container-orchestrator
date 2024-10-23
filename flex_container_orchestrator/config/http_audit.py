@@ -4,15 +4,15 @@ Note: This script from mchpy (MeteoSwiss Blueprint) was added here because I cou
 Instrumentation of web applications to include the request_id in all responses
 and make it available to other services (e.g. logging)
 """
+
 # noinspection PyPackageRequirements
 import contextvars
 import logging
 import uuid
-
 from typing import Callable
 
 X_REQUEST_ID = "X-REQUEST-ID"
-request_id = contextvars.ContextVar('request_id', default='')
+request_id = contextvars.ContextVar("request_id", default="")
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,6 @@ def extract_request_id_from(extract_request_fn: Callable[[str], str | None]) -> 
 
 def _generate_request_id() -> str:
     rid = str(uuid.uuid4())
-    logger.debug('Generated new request_id %s', rid)
+    logger.debug("Generated new request_id %s", rid)
 
     return rid
-

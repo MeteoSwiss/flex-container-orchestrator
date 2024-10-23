@@ -1,139 +1,70 @@
 class Globals {
-    // sets the pipeline to execute all steps related to building the service
-    static boolean build = false
+    // the library version
+    static String version = 'latest'
 
-    // sets to abort the pipeline if the Sonarqube QualityGate fails
-    static boolean qualityGateAbortPipeline = false
-
-    // sets the pipeline to execute all steps related to releasing the service
-    static boolean release = false
-
-    // sets the pipeline to execute all steps related to deployment of the service
-    static boolean deploy = false
-
-    // sets the pipeline to execute all steps related to delete the service from the container platform
-    static boolean deleteContainer = false
-
-    // sets the pipeline to execute all steps related to trigger the security scan
-    static boolean runSecurityScan = false
-
-    // the project name in container platform
-    static String ocpProject = ''
-
-    // Container deployment environment
-    static String deployEnv = ''
-
-    // the image tag used for tagging the image
-    static String imageTag = ''
-
-    // the service version
-    static String version = ''
-
-    // sets the pipeline to execute all steps related to restart the service
-    static boolean restart = false
+    // the tag used when publishing documentation
+    static String documentationTag = 'latest'
 }
 
-
 pipeline {
-    agent { label 'podman' }
+    agent {label 'podman'}
 
     parameters {
-        choice(choices: ['Build', 'Deploy', 'Release', 'Restart', 'Delete', 'Security-Scan'],
-            description: 'Build type',
-            name: 'buildChoice')
-
-        choice(choices: ['devt', 'depl', 'prod'],
-               description: 'Environment',
-               name: 'environment')
-
+        booleanParam(name: 'RELEASE_BUILD', defaultValue: false, description: 'Creates and publishes a new release')
         booleanParam(name: 'PUBLISH_DOCUMENTATION', defaultValue: false, description: 'Publishes the generated documentation')
     }
 
+    environment {
+        SCANNER_HOME = tool name: 'Sonarqube-certs-PROD', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+
+        PATH = "$workspace/.venv-mchbuild/bin:$HOME/tools/openshift-client-tools:$HOME/tools/trivy:$PATH"
+        KUBECONFIG = "$workspace/.kube/config"
+        HTTP_PROXY = 'http://proxy.meteoswiss.ch:8080'
+        HTTPS_PROXY = 'http://proxy.meteoswiss.ch:8080'
+        NO_PROXY = '.meteoswiss.ch,localhost'
+    }
+
     options {
+        gitLabConnection('CollabGitLab')
+
         // New jobs should wait until older jobs are finished
         disableConcurrentBuilds()
         // Discard old builds
         buildDiscarder(logRotator(artifactDaysToKeepStr: '7', artifactNumToKeepStr: '1', daysToKeepStr: '45', numToKeepStr: '10'))
         // Timeout the pipeline build after 1 hour
         timeout(time: 1, unit: 'HOURS')
-        gitLabConnection('CollabGitLab')
-    }
-
-    environment {
-        PATH = "$workspace/.venv-mchbuild/bin:$HOME/tools/openshift-client-tools:$HOME/tools/trivy:$PATH"
-        KUBECONFIG = "$workspace/.kube/config"
-        HTTP_PROXY = 'http://proxy.meteoswiss.ch:8080'
-        HTTPS_PROXY = 'http://proxy.meteoswiss.ch:8080'
-        SCANNER_HOME = tool name: 'Sonarqube-certs-PROD', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
 
     stages {
-        stage('Preflight') {
+        stage('Init') {
             steps {
+                sh '''
+                python -m venv .venv-mchbuild
+                PIP_INDEX_URL=https://hub.meteoswiss.ch/nexus/repository/python-all/simple \
+                    .venv-mchbuild/bin/pip install --upgrade mchbuild
+                '''
                 updateGitlabCommitStatus name: 'Build', state: 'running'
-
-                script {
-                    echo '---- INSTALL MCHBUILD ----'
-                    sh '''
-                    python -m venv .venv-mchbuild
-                    PIP_INDEX_URL=https://hub.meteoswiss.ch/nexus/repository/python-all/simple \
-                      .venv-mchbuild/bin/pip install --upgrade mchbuild
-                    '''
-                    echo '---- INITIALIZE PARAMETERS ----'
-                    Globals.deployEnv = params.environment
-                    Globals.ocpProject = Globals.deployEnv
-                        ? sh(script: "mchbuild openshiftExposeProperties -s deploymentEnvironment=${Globals.deployEnv} -g ocpProject",
-                             returnStdout: true) : ''
-                    // Determine the type of build
-                    switch (params.buildChoice) {
-                        case 'Build':
-                            Globals.build = true
-                            break
-                        case 'Deploy':
-                            Globals.deploy = true
-                            break
-                        case 'Release':
-                            Globals.release = true
-                            Globals.build = true
-                            break
-                        case 'Delete':
-                            Globals.deleteContainer = true
-                            break
-                        case 'Security-Scan':
-                            Globals.runSecurityScan = true
-                            break
-                        case 'Restart':
-                            Globals.restart = true
-                            break
-                    }
-
-                    if (Globals.release) {
-                        echo '---- TAGGING RELEASE ----'
-                        sh 'mchbuild deploy.addNextTag'
-                    }
-
-                    if (Globals.build || Globals.deploy || Globals.runSecurityScan) {
-                        def versionAndTag = sh(
-                            script: 'mchbuild -g version -g image build.getVersion',
-                            returnStdout: true
-                        ).split('\n')
-                        Globals.version = versionAndTag[0]
-                        Globals.imageTag = versionAndTag[1]
-                        echo "Using version ${Globals.version} and image tag ${Globals.imageTag}"
-                    }
-                }
             }
         }
 
-
-        stage('Build') {
-            when { expression { Globals.build } }
-            steps {
-                echo '---- BUILD IMAGE ----'
-                sh """
-                mchbuild -s version=${Globals.version} -s image=${Globals.imageTag} \
-                  build.imageTester test.unit
-                """
+        stage('Test') {
+            parallel {
+                stage('python 3.10') {
+                    steps {
+                        sh 'mchbuild -s pythonImageName=\'"3.10"\' -s testReportName=junit-3.10.xml verify.unitWithoutCoverage'
+                    }
+                }
+                stage('python 3.11') {
+                    steps {
+                        sh 'mchbuild -s pythonImageName=\'"3.11"\' -s testReportName=junit-3.11.xml verify.unitWithoutCoverage'
+                    }
+                }
+                stage('python 3.12') {
+                    steps {
+                        sh 'mchbuild -s pythonImageName=\'"3.12"\' build test'
+                        recordIssues(qualityGates: [[threshold: 10, type: 'TOTAL', unstable: false]], tools: [myPy(pattern: 'test_reports/mypy.log')])
+                    }
+                }
             }
             post {
                 always {
@@ -142,23 +73,10 @@ pipeline {
             }
         }
 
-
         stage('Scan') {
-            when { expression { Globals.build } }
             steps {
-                echo '---- LINT & TYPE CHECK ----'
-                sh "mchbuild -s image=${Globals.imageTag} test.lint"
-                script {
-                    try {
-                        recordIssues(qualityGates: [[threshold: 10, type: 'TOTAL', unstable: false]], tools: [myPy(pattern: 'test_reports/mypy.log')])
-                    }
-                    catch (err) {
-                        error "Too many mypy issues, exiting now..."
-                    }
-                }
-
-                echo("---- MISCONFIGURATIONS CHECK ----")
-                sh "mchbuild verify.configurationSecurityScan"
+                echo("---- DEPENDENCIES SECURITY SCAN ----")
+                sh "mchbuild verify.securityScan"
 
                 echo("---- SONARQUBE ANALYSIS ----")
                 withSonarQubeEnv("Sonarqube-PROD") {
@@ -173,164 +91,54 @@ pipeline {
                 timeout(time: 1, unit: 'HOURS') {
                     // Parameter indicates whether to set pipeline to UNSTABLE if Quality Gate fails
                     // true = set pipeline to UNSTABLE, false = don't
-                    waitForQualityGate abortPipeline: Globals.qualityGateAbortPipeline
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
 
-
-
-
-        stage('Create Artifacts') {
-            when { expression { Globals.build || Globals.deploy || params.PUBLISH_DOCUMENTATION } }
+        stage('Release') {
+            when { expression { params.RELEASE_BUILD } }
             steps {
+                echo 'Build a wheel and publish'
                 script {
-                    if (Globals.build || Globals.deploy) {
-                        echo '---- CREATE IMAGE ----'
-                        sh """
-                        mchbuild -s version=${Globals.version} -s image=${Globals.imageTag} \
-                          build.imageRunner
-                        """
-                    }
-                    if (params.PUBLISH_DOCUMENTATION) {
-                        echo '---- CREATE DOCUMENTATION ----'
-                        sh """
-                        mchbuild -s version=${Globals.version} -s image=${Globals.imageTag} \
-                          build.docs
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Publish Artifacts') {
-            when { expression { Globals.deploy || Globals.release || params.PUBLISH_DOCUMENTATION } }
-            environment {
-                REGISTRY_AUTH_FILE = "$workspace/.containers/auth.json"
-            }
-            steps {
-                script {
-                    if (Globals.deploy || Globals.release) {
-                        echo "---- PUBLISH IMAGE ----"
-                        withCredentials([usernamePassword(credentialsId: 'openshift-nexus',
-                                                          passwordVariable: 'NXPASS',
-                                                          usernameVariable: 'NXUSER')]) {
-                            sh "mchbuild deploy.image -s fullImageName=${Globals.imageTag}"
-                        }
-                    }
-                }
-                script {
-                    if (params.PUBLISH_DOCUMENTATION) {
-                        echo "---- PUBLISH DOCUMENTATION ----"
-                        withCredentials([string(credentialsId: 'documentation-main-prod-token',
-                                                variable: 'DOC_TOKEN')]) {
-                            sh """
-                            mchbuild deploy.docs -s deploymentEnvironment=prod \
-                              -s docVersion=${Globals.version}
-                            """
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Image Security Scan') {
-            when {
-               expression { Globals.runSecurityScan}
-            }
-            steps {
-                script {
-                   echo '---- RUN SECURITY SCAN ----'
-                   sh "mchbuild verify.imageSecurityScan -s deploymentEnvironment=${Globals.deployEnv}"
-                }
-            }
-        }
-
-        stage('Deploy') {
-            when { expression { Globals.deploy } }
-            environment {
-                REGISTRY_AUTH_FILE = "$workspace/.containers/auth.json"
-            }
-            steps {
-                script {
-                    // manual confirmation step for production deployment
-                    if (Globals.deployEnv.contains('prod')) {
-                        input message: 'Are you sure you want to deploy to PROD?', ok: 'Deploy'
+                    withCredentials([string(credentialsId: 'python-mch-nexus-secret', variable: 'PYPIPASS')]) {
+                        sh "PYPIUSER=python-mch mchbuild deploy.pypi"
+                        Globals.version = sh(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
+                        Globals.documentationTag = Globals.version
+                        env.TAG_NAME = Globals.documentationTag
                     }
 
-                    // we tag the current commit as the one deployed to the target environment
-                    sh "mchbuild -s gitTag=${Globals.deployEnv} deploy.addTag"
-
-                    withCredentials([usernamePassword(credentialsId: 'openshift-nexus',
-                                                      passwordVariable: 'NXPASS',
-                                                      usernameVariable: 'NXUSER')]) {
-                        echo 'Push to image registry'
-                        sh """
-                        mchbuild deploy.image -s deploymentEnvironment=${Globals.deployEnv} \
-                          -s imageToTag=${Globals.imageTag}
-                        """
-                    }
-
-                    withCredentials([usernamePassword(credentialsId: 'openshift-nexus',
-                                                      passwordVariable: 'NXPASS',
-                                                      usernameVariable: 'NXUSER'),
-                                     string(credentialsId: "${Globals.ocpProject}-token",
-                                            variable: 'OCP_TOKEN')]) {
-                        sh "mchbuild deploy.cp -s deploymentEnvironment=${Globals.deployEnv}"
-                    }
-
-                    // The security report is uploaded once the image has been deployed
+                    echo("---- PUBLISH DEPENDENCIES TO DEPENDENCY REGISTRY ----")
                     withCredentials([string(credentialsId: 'dependency-track-token-prod', variable: 'DTRACK_TOKEN')]) {
                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                        echo 'Upload the security report to the dependency track'
-                        sh """
-                        mchbuild verify.imageSecurityScan \
-                                 verify.publishSbom -s deploymentEnvironment=${Globals.deployEnv}
-                        """
+                            sh "mchbuild verify.publishSbom -s version=${Globals.version}"
                        }
                     }
                 }
-           }
-        }
-
-
-        stage('Restart Deployment') {
-            when { expression { Globals.restart } }
-            steps {
-                withCredentials([string(credentialsId: "${Globals.ocpProject}-token",
-                                        variable: 'OCP_TOKEN')]) {
-                    sh "mchbuild deploy.cpRestart -s deploymentEnvironment=${Globals.deployEnv}"
-                }
             }
         }
 
-
-        stage('Delete Deployment') {
-            when { expression { Globals.deleteContainer } }
+        stage('Publish Documentation') {
+            when { expression { params.PUBLISH_DOCUMENTATION } }
             steps {
-                withCredentials([string(credentialsId: "${Globals.ocpProject}-token",
-                                        variable: 'OCP_TOKEN')]) {
-                    sh "mchbuild deploy.cpDelete -s deploymentEnvironment=${Globals.deployEnv}"
+                withCredentials([string(credentialsId: 'documentation-main-prod-token',
+                                        variable: 'DOC_TOKEN')]) {
+                    sh """
+                    mchbuild -s pythonImageName=3.12 -s deploymentEnvironment=prod \
+                      -s docVersion=${Globals.documentationTag} deploy.docs
+                    """
                 }
             }
         }
     }
 
-
     post {
-        cleanup {
-            sh """
-            mchbuild -s image=${Globals.imageTag} \
-                     -s deploymentEnvironment=${Globals.deployEnv} clean
-            """
-        }
         aborted {
             updateGitlabCommitStatus name: 'Build', state: 'canceled'
         }
         failure {
             updateGitlabCommitStatus name: 'Build', state: 'failed'
             echo 'Sending email'
-            sh 'df -h'
             emailext(subject: "${currentBuild.fullDisplayName}: ${currentBuild.currentResult}",
                 attachLog: true,
                 attachmentsPattern: 'generatedFile.txt',

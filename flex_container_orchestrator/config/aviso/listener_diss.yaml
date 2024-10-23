@@ -17,4 +17,3 @@ listeners:
             --date "${request.date}" \
             --time "${request.time}" \
             --location "${location}" >> avisoLogs/log_run_${request.date}_${request.time}.log 2>&1
-

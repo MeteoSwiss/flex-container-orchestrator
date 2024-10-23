@@ -1,6 +1,4 @@
 import datetime
-import json
-import sqlite3
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,14 +21,12 @@ def test_is_row_processed(fetchone_return, expected_result):
 
     mock_conn.cursor.return_value = mock_cursor
 
-    mock_cursor.execute.return_value = (
-        mock_cursor  # execute returns the cursor itself
-    )
+    mock_cursor.execute.return_value = mock_cursor  # execute returns the cursor itself
     mock_cursor.fetchone.return_value = (
         fetchone_return  # fetchone returns the tuple for testing
     )
 
-    result = is_row_processed(mock_conn, "202310220600", "12")
+    result = is_row_processed(mock_conn, datetime.datetime(2023, 10, 22, 6, 0), "12")
 
     assert result == expected_result
 
@@ -64,9 +60,7 @@ def test_is_row_processed(fetchone_return, expected_result):
         ),
     ],
 )
-def test_generate_flexpart_start_times(
-    frt_dt, lead_time, tdelta, tfreq_f, expected
-):
+def test_generate_flexpart_start_times(frt_dt, lead_time, tdelta, tfreq_f, expected):
     result = generate_flexpart_start_times(frt_dt, lead_time, tdelta, tfreq_f)
     assert result == expected
 
@@ -89,7 +83,7 @@ def test_fetch_processed_items(mock_connect):
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value = mock_cursor
     mock_cursor.fetchall.return_value = [(True, "12"), (False, "24")]
-    frt_s = {"202310220600"}
+    frt_s = {datetime.datetime(2023, 10, 22, 6, 0)}
     result = fetch_processed_items(mock_conn, frt_s)
     assert result == {"20231022060012"}
 
@@ -105,4 +99,3 @@ def test_define_config():
         "IETIME": "18",
     }
     assert result == expected_config
-

@@ -3,6 +3,7 @@ Note: This script from mchpy (MeteoSwiss Blueprint) was added here because I cou
 
 Logging configuration including http request auditing
 """
+
 import logging.config
 import time
 from enum import Enum
@@ -15,40 +16,40 @@ from pythonjsonlogger import jsonlogger
 from flex_container_orchestrator.config import http_audit
 
 _logger: dict = {
-    'version': 1,
+    "version": 1,
     # without the following option, using apply_logging_settings too late is dangerous because all loggers which were
     # previously known would be silently disabled
-    'disable_existing_loggers': False,
-    'filters': {
-        'standard_request_id': {
-            '()': 'flex_container_orchestrator.config.logger.StandardRequestIdFilter',
+    "disable_existing_loggers": False,
+    "filters": {
+        "standard_request_id": {
+            "()": "flex_container_orchestrator.config.logger.StandardRequestIdFilter",
         },
-        'json_request_id': {
-            '()': 'flex_container_orchestrator.config.logger.JsonRequestIdFilter',
-        },
-    },
-    'formatters': {
-        'standard': {
-            'format': '{asctime} {request_id}{levelname:>8s} {process} --- [{threadName:>15s}] {name_with_func:40}: '
-                      '{message}',
-            'style': '{'
-        },
-        'json': {
-            '()': 'flex_container_orchestrator.config.logger.LogstashJsonFormatter'
+        "json_request_id": {
+            "()": "flex_container_orchestrator.config.logger.JsonRequestIdFilter",
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'DEBUG',
-            'filters': ['standard_request_id'],
-            'formatter': 'standard',
+    "formatters": {
+        "standard": {
+            "format": "{asctime} {request_id}{levelname:>8s} {process} --- [{threadName:>15s}] {name_with_func:40}: "
+            "{message}",
+            "style": "{",
+        },
+        "json": {
+            "()": "flex_container_orchestrator.config.logger.LogstashJsonFormatter"
         },
     },
-    'loggers': {},
-    'root': {
-        'handlers': ['console'],
-        'level': 'DEBUG',
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "filters": ["standard_request_id"],
+            "formatter": "standard",
+        },
+    },
+    "loggers": {},
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
     },
 }
 
@@ -57,20 +58,22 @@ class LogLevel(str, Enum):
     """
     Wrapper class for Python logging levels so that we can make sure that no unknown logging level is taken.
     """
-    CRITICAL = 'CRITICAL'
-    ERROR = 'ERROR'
-    WARNING = 'WARNING'
-    INFO = 'INFO'
-    DEBUG = 'DEBUG'
-    NOTSET = 'NOTSET'
+
+    CRITICAL = "CRITICAL"
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
+    NOTSET = "NOTSET"
 
 
 class FormatterType(str, Enum):
     """
     Wrapper class for the formatters we provide
     """
-    STANDARD = 'standard'
-    JSON = 'json'
+
+    STANDARD = "standard"
+    JSON = "json"
 
 
 class LoggingSettings(BaseModel):
@@ -83,21 +86,26 @@ class LoggingSettings(BaseModel):
 
     As a default, the root logging level DEBUG and the standard formatter are taken.
     """
-    model_config = SettingsConfigDict(extra='forbid')
+
+    model_config = SettingsConfigDict(extra="forbid")
 
     formatter: FormatterType = FormatterType.STANDARD
     root_log_level: LogLevel = LogLevel.DEBUG
     child_log_levels: dict[str, LogLevel] = {}
 
-    @field_validator('child_log_levels')
-    def logger_name_does_not_contain_reserved_key(cls, child_log_levels: dict[str, LogLevel]) -> dict[str, LogLevel]:
+    @field_validator("child_log_levels")
+    def logger_name_does_not_contain_reserved_key(  # pylint: disable=no-self-argument
+        cls, child_log_levels: dict[str, LogLevel]
+    ) -> dict[str, LogLevel]:
         for key in child_log_levels.keys():
-            if key in ['formatter', 'root', 'root_log_level', '']:
-                raise ValueError('Using empty or reserved name for child logger.')
+            if key in ["formatter", "root", "root_log_level", ""]:
+                raise ValueError("Using empty or reserved name for child logger.")
         return child_log_levels
 
 
-def apply_logging_settings(logging_settings: LoggingSettings = LoggingSettings()) -> None:
+def apply_logging_settings(
+    logging_settings: LoggingSettings = LoggingSettings(),
+) -> None:
     """
     Configures the python logger for the current application.
 
@@ -122,12 +130,17 @@ def apply_logging_settings(logging_settings: LoggingSettings = LoggingSettings()
 
     :param logging_settings: the settings according to which logging should be configured
     """
-    config = {'logging': {'formatter': logging_settings.formatter.value, 'root': logging_settings.root_log_level.value}}
+    config = {
+        "logging": {
+            "formatter": logging_settings.formatter.value,
+            "root": logging_settings.root_log_level.value,
+        }
+    }
     for logger_name, log_level in logging_settings.child_log_levels.items():
-        config['logging'][logger_name] = log_level.name
+        config["logging"][logger_name] = log_level.name
 
-    if config and 'logging' in config:
-        logging_config_ = config['logging']
+    if config and "logging" in config:
+        logging_config_ = config["logging"]
 
         _set_formatter(logging_config_)
         _set_root_logger(logging_config_)
@@ -135,31 +148,35 @@ def apply_logging_settings(logging_settings: LoggingSettings = LoggingSettings()
 
     logging.config.dictConfig(_logger)
     # Use a period instead of the comma before the milliseconds part
-    logging.Formatter.default_msec_format = '%s.%03d'
+    logging.Formatter.default_msec_format = "%s.%03d"
     # Use UTC timestamps
     logging.Formatter.converter = time.gmtime
     logging.captureWarnings(True)
 
 
 def _set_formatter(logging_config: dict) -> None:
-    if 'formatter' in logging_config:
-        formatter = logging_config['formatter']
-        _logger['handlers']['console']['formatter'] = formatter
-        _logger['handlers']['console']['filters'] = [formatter + '_request_id']
+    if "formatter" in logging_config:
+        formatter = logging_config["formatter"]
+        _logger["handlers"]["console"]["formatter"] = formatter
+        _logger["handlers"]["console"]["filters"] = [formatter + "_request_id"]
 
 
 def _set_root_logger(logging_config: dict) -> None:
-    if 'root' in logging_config:
-        _logger['root']['level'] = logging_config['root']
+    if "root" in logging_config:
+        _logger["root"]["level"] = logging_config["root"]
 
 
 def _set_loggers(logging_config: dict) -> None:
-    loggers = [(logger, level) for logger, level in logging_config.items() if logger not in ['formatter', 'root']]
-    for (logger, level) in loggers:
-        if logger in _logger['loggers']:
-            _logger['loggers'][logger]['level'] = level
+    loggers = [
+        (logger, level)
+        for logger, level in logging_config.items()
+        if logger not in ["formatter", "root"]
+    ]
+    for logger, level in loggers:
+        if logger in _logger["loggers"]:
+            _logger["loggers"][logger]["level"] = level
         else:
-            _logger['loggers'][logger] = {'level': level}
+            _logger["loggers"][logger] = {"level": level}
 
 
 class StandardRequestIdFilter(logging.Filter):
@@ -171,9 +188,9 @@ class StandardRequestIdFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         request_id = http_audit.get_request_id()
         # request_id is only in the log when existing
-        record.request_id = '[' + request_id + '] ' if request_id else ''
+        record.request_id = "[" + request_id + "] " if request_id else ""
         # logger and function name concatenated and truncated from the left
-        record.name_with_func = (record.name + '.' + record.funcName)[-40:]
+        record.name_with_func = (record.name + "." + record.funcName)[-40:]
         return True
 
 
@@ -193,6 +210,7 @@ class JsonRequestIdFilter(logging.Filter):
 
 class MessageContainsFilter(logging.Filter):
     """Filter log messages which contain a substring."""
+
     def __init__(self, substrings: Sequence[str], *args: Any, **kwargs: Any) -> None:
         """Constructor.
 
@@ -225,27 +243,35 @@ class LogstashJsonFormatter(jsonlogger.JsonFormatter):
     # 'exc_info' is transformed later when existing, cannot be easily transformed
     # to 'stack_trace'.
     _logged_fields = (
-        ('asctime', '@timestamp'),
-        ('threadName', 'thread_name'),
-        ('levelname', 'level'),
-        ('name', 'logger_name'),
-        ('funcName', 'func_name'),
+        ("asctime", "@timestamp"),
+        ("threadName", "thread_name"),
+        ("levelname", "level"),
+        ("name", "logger_name"),
+        ("funcName", "func_name"),
     )
-    _log_levels = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
+    _log_levels = ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"]
 
-    def add_fields(self, log_record: dict[str, Any], record: logging.LogRecord, message_dict: dict[str, Any]) -> None:
+    def add_fields(
+        self,
+        log_record: dict[str, Any],
+        record: logging.LogRecord,
+        message_dict: dict[str, Any],
+    ) -> None:
         super().add_fields(log_record, record, message_dict)
         converter = self.converter(record.created)
-        log_record['@timestamp'] = time.strftime('%Y-%m-%dT%H:%M:%S.%%03d%z', converter) % record.msecs
+        log_record["@timestamp"] = (
+            time.strftime("%Y-%m-%dT%H:%M:%S.%%03d%z", converter) % record.msecs
+        )
         for src_field, field in self._logged_fields:
             value = record.__dict__.get(src_field)
             if value is not None:
-                if field == 'level':
-                    if value == 'WARNING':
-                        value = 'WARN'
+                if field == "level":
+                    if value == "WARNING":
+                        value = "WARN"
                     try:
-                        log_record['level_value'] = (self._log_levels.index(value) + 1) * 10_000
+                        log_record["level_value"] = (
+                            self._log_levels.index(value) + 1
+                        ) * 10_000
                     except ValueError:
                         pass
                 log_record[field] = value
-

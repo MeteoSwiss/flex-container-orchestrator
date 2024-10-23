@@ -13,6 +13,8 @@ import yaml
 import boto3
 from botocore.exceptions import ClientError
 
+from flex_container_orchestrator import CONFIG
+
 
 def parse_arguments():
     """
@@ -161,7 +163,8 @@ def fetch_processed_items(conn, frt_s):
             items_f = cursor.fetchall()
             for item in items_f:
                 if item[0]:  # processed == True
-                    processed_items.add(frt + f"{int(item[1]):02}")
+                    frt_str = frt.strftime('%Y%m%d%H%M') if isinstance(frt, datetime.datetime) else str(frt)
+                    processed_items.add(frt_str + f"{int(item[1]):02}")
     except sqlite3.Error as e:
         logging.error(f"SQLite query error while fetching processed items: {e}")
         sys.exit(1)
@@ -193,12 +196,11 @@ def main():
     DB_PATH = args.db_path
 
     # Constants
-    TINCR = 1  # How many hours between time steps
-    TDELTA = 6  # Number of timesteps to run Flexpart with (temporarily set to 6 timesteps but operational config is 90)
-    TFREQ_F = 6  # Frequency of Flexpart runs in hours
-    TFREQ = 6  # Frequency of IFS forecast times in hours
+    TINCR = CONFIG.main.time_settings.tincr
+    TDELTA = CONFIG.main.time_settings.tdelta
+    TFREQ_F = CONFIG.main.time_settings.tfreq_f
+    TFREQ = CONFIG.main.time_settings.tfreq
 
-    # Connect to the database
     conn = connect_db(DB_PATH)
 
     frt_dt = datetime.datetime.strptime(f"{DATE}{int(TIME):02d}00", "%Y%m%d%H%M")

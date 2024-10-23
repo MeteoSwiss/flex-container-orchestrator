@@ -9,6 +9,11 @@ class AppSettings(BaseModel):
     app_name: str
 
 
+class TimeSettings(BaseModel):
+    tincr: int
+    tdelta: int
+
+
 class ServiceSettings(BaseServiceSettings):
     logging: LoggingSettings
     main: AppSettings

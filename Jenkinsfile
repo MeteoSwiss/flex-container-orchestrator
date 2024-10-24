@@ -28,6 +28,31 @@ pipeline {
                 updateGitlabCommitStatus name: 'Test', state: 'running'
 
                 script {
+                    # Ensure pyenv is initialized
+                    export PATH="$HOME/.pyenv/bin:$PATH"
+                    eval "$(pyenv init --path)"
+                    eval "$(pyenv init -)"
+                    eval "$(pyenv virtualenv-init -)"
+                    '''
+
+                    echo '---- INSTALL PYTHON 3.12 ----'
+                    sh '''
+                    # Install Python 3.12 using pyenv
+                    pyenv install 3.12.0
+                    '''
+
+                    echo '---- SETUP PYTHON 3.12 LOCALLY ----'
+                    sh '''
+                    # Create a local Python version file to specify the version for this project
+                    echo "3.12.0" > .python-version
+
+                    # Create a virtual environment with Python 3.12
+                    pyenv virtualenv 3.12.0 venv-3.12
+
+                    # Activate the virtual environment
+                    pyenv activate venv-3.12
+
+                    '''
                     echo '---- INSTALL POETRY ----'
                     sh '''
                     # Install Poetry if not already installed

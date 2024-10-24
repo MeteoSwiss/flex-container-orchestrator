@@ -17,7 +17,7 @@ pipeline {
     }
 
     environment {
-        PATH = "$HOME/.local/bin:$PATH"  // Ensure Poetry's bin directory is in PATH
+        PATH = "$workspace/.venv-mchbuild/bin:$HOME/tools/openshift-client-tools:$HOME/tools/trivy:$PATH"
         HTTP_PROXY = 'http://proxy.meteoswiss.ch:8080'
         HTTPS_PROXY = 'http://proxy.meteoswiss.ch:8080'
     }
@@ -30,7 +30,6 @@ pipeline {
                 script {
                     sh '''
                     # Ensure pyenv is initialized
-                    export PATH="$HOME/.pyenv/bin:$PATH"
                     eval "$(pyenv init --path)"
                     eval "$(pyenv init -)"
                     eval "$(pyenv virtualenv-init -)"

@@ -44,4 +44,4 @@ ENV VERSION=$VERSION
 # uid 1001 is defined in the base-container-images for this purpose
 USER 1001
 
-CMD ["uvicorn", "--host", "0.0.0.0", "--port", "8080", "flex_container_orchestrator.main:app", "--log-config", "uvicorn_logging_settings.json"]
+# No CMD or ENTRYPOINT, just the environment with all dependencies ready

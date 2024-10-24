@@ -28,6 +28,7 @@ pipeline {
                 updateGitlabCommitStatus name: 'Test', state: 'running'
 
                 script {
+                    sh '''
                     # Ensure pyenv is initialized
                     export PATH="$HOME/.pyenv/bin:$PATH"
                     eval "$(pyenv init --path)"

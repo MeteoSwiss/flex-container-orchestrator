@@ -1,18 +1,11 @@
-class Globals {
-    static boolean runTests = true  // new variable to run tests
-
-    // remove unused variables related to build, deploy, etc.
-}
-
 pipeline {
     agent { label 'podman' }
 
     parameters {
-        choice(
-            choices: ['Test'],  // Only keep Test option
-            description: 'Run Tests',
-            name: 'buildChoice'  // Name for the choice parameter
-        )
+        choice(choices: ['Test'],
+               description: 'Run Tests',
+               name: 'buildChoice')
+
         booleanParam(name: 'PUBLISH_DOCUMENTATION', defaultValue: false, description: 'Publishes the generated documentation')
     }
 
@@ -24,10 +17,9 @@ pipeline {
     }
 
     environment {
-        PATH = "$workspace/.venv-mchbuild/bin:$HOME/tools/openshift-client-tools:$HOME/tools/trivy:$PATH"
+        PATH = "$HOME/.local/bin:$PATH"  // Ensure Poetry's bin directory is in PATH
         HTTP_PROXY = 'http://proxy.meteoswiss.ch:8080'
         HTTPS_PROXY = 'http://proxy.meteoswiss.ch:8080'
-        SCANNER_HOME = tool name: 'Sonarqube-certs-PROD', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
 
     stages {
@@ -36,15 +28,17 @@ pipeline {
                 updateGitlabCommitStatus name: 'Test', state: 'running'
 
                 script {
-                    echo '---- INSTALL MCHBUILD ----'
+                    echo '---- INSTALL POETRY ----'
                     sh '''
-                    python -m venv .venv-mchbuild
-                    PIP_INDEX_URL=https://hub.meteoswiss.ch/nexus/repository/python-all/simple \
-                      .venv-mchbuild/bin/pip install --upgrade mchbuild pytest
+                    # Install Poetry if not already installed
+                    curl -sSL https://install.python-poetry.org | python3 - --yes
                     '''
 
-                    echo '---- INITIALIZE PARAMETERS ----'
-                    Globals.runTests = params.buildChoice == 'Test'
+                    echo '---- INSTALL DEPENDENCIES ----'
+                    sh '''
+                    # Install the project dependencies defined in pyproject.toml
+                    poetry install
+                    '''
                 }
             }
         }
@@ -54,7 +48,8 @@ pipeline {
             steps {
                 echo '---- RUNNING PYTEST ----'
                 sh '''
-                .venv-mchbuild/bin/pytest --junitxml=test_reports/junit.xml
+                # Run tests using Poetry
+                poetry run pytest --junitxml=test_reports/junit.xml
                 '''
             }
             post {
@@ -69,7 +64,8 @@ pipeline {
             steps {
                 echo '---- LINT & TYPE CHECK ----'
                 sh '''
-                .venv-mchbuild/bin/mchbuild test.lint
+                # Run linting and type checking using Poetry
+                poetry run mchbuild test.lint
                 '''
             }
             post {
@@ -87,7 +83,7 @@ pipeline {
                 echo "---- SONARQUBE ANALYSIS ----"
                 withSonarQubeEnv("Sonarqube-PROD") {
                     sh "sed -i 's/\\/src\\/app-root/.\\//g' test_reports/coverage.xml"
-                    sh "${SCANNER_HOME}/bin/sonar-scanner"
+                    sh "poetry run ${SCANNER_HOME}/bin/sonar-scanner"
                 }
 
                 echo "---- SONARQUBE QUALITY GATE ----"
@@ -101,7 +97,8 @@ pipeline {
     post {
         cleanup {
             sh '''
-            mchbuild clean
+            # Clean up using mchbuild
+            poetry run mchbuild clean
             '''
         }
         aborted {
@@ -120,3 +117,4 @@ pipeline {
         }
     }
 }
+

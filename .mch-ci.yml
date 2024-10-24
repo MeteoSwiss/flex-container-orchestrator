@@ -1,0 +1,38 @@
+# To test with your local Python environment, run 'mchbuild build test'.
+# To use a container image, set for example '-s pythonImageName=3.12'.
+default:
+  - build:
+    - install:
+        - pythonInstall:
+    - docs:
+        - pythonDocs:
+            pullAlways: false
+  - test:
+    - unit:
+        - pythonTest:
+            pythonVersion: 3.12
+            pullAlways: false
+    - integration:
+        # Generate a python library project using the cookiecutter template with default values and execute
+        #   its test using the different supported python versions
+        - containerRunImage:
+            imageName: mch/python-3.12
+            commands: poetry install && PYTHONPATH=/src/app-root poetry run cookiecutter -o output --no-input -f . generate_poetry_lock=y
+        - script: |
+            cd output/amazing-library
+            mchbuild -s pythonImageName='"3.10"' verify.unitWithoutCoverage
+            mchbuild -s pythonImageName='"3.11"' verify.unitWithoutCoverage
+            mchbuild -s pythonImageName='"3.12"' build test
+  - deploy:
+    - addNextTag:
+        gitAddNextTag:
+    - docs:
+        openshiftPublishDocs:
+          docSrc: doc/_build/
+          docType: python
+
+variables:
+  project: cookiecutter-python-library
+  ocpHostNameForEnv:
+    prod: api.cp.meteoswiss.ch:6443
+

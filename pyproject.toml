@@ -8,16 +8,6 @@ authors = ["Nina Burgdorfer <nina.burgdorfer@meteoswiss.ch>"]
 readme = "README.rst"
 include = ["HISTORY.rst"]
 
-[[tool.poetry.source]]
-name = "pypi-mch"
-url = "https://service.meteoswiss.ch/nexus/repository/python-all/simple"
-priority = "primary"
-
-[[tool.poetry.source]]
-name = "pypi-mch-publish"
-# only hub entrypoint can be used for publishing libraries (accessible from CI/CD server)
-url = "https://hub.meteoswiss.ch/nexus/repository/python-mch/"
-priority = "explicit"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -25,7 +15,8 @@ pydantic = "^2.9.2"
 pydantic-settings = "^2.6.0"
 python-json-logger = "^2.0.7"
 boto3 = "^1.35.48"
-mchbuild = "^0.4.8"
+# mchbuild = "^0.4.8"
+load-dotenv = "^0.1.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.10.0"

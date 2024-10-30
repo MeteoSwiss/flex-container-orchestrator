@@ -10,10 +10,10 @@ listeners:
       - type: log
         path: avisoLogs/log_aviso_notifications.log
       - type: command
-        working_dir: $HOME
+        working_dir: $HOME/flex-container-orchestrator/
         command: >
-          python3 flex-container-orchestrator/flex-container-orchestrator/main.py \
+          poetry run python3 flex_container_orchestrator/main.py \
             --step "${request.step}" \
             --date "${request.date}" \
             --time "${request.time}" \
-            --location "${location}" >> avisoLogs/log_run_${request.date}_${request.time}.log 2>&1
+            --location "${location}" >> ../avisoLogs/log_run_${request.date}_${request.time}.log 2>&1

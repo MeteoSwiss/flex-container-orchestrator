@@ -51,6 +51,9 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     # ====== First part: Run pre-processing for Flexpart ======
     db_mount = os.path.expanduser(f"{os.getenv('DB_MOUNT')}")
     docker_image = f"{os.getenv('ECR_REPO')}:{os.getenv('TAG')}"
+    env_file_path = os.path.expanduser(
+        "~/flex-container-orchestrator/flex_container_orchestrator/config/.env"
+    )
 
     if not os.path.exists(db_mount):
         logging.error("SQLite database directory %s does not exist.", db_mount)
@@ -64,9 +67,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
             "--mount",
             f"type=bind,source={db_mount},destination=/src/db/",
             "--env-file",
-            os.path.expanduser(
-                "~/flex-container-orchestrator/flex_container_orchestrator/config/.env"
-            ),
+            env_file_path,
             docker_image,
             "--step",
             step,
@@ -86,7 +87,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     logging.info("Pre-processing container executed successfully.")
 
     # ====== Second part: Run aggregator_flexpart.py ======
-    db_path = os.path.expanduser("~/.sqlite/sqlite3-db")
+    db_path = os.path.join(db_mount, "sqlite3-db")
 
     if not os.path.exists(db_path):
         logging.error("Database file %s does not exist.", db_path)
@@ -143,7 +144,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
             command_str = " ".join(command)
 
             docker_command = (
-                f"docker run {' '.join(env_vars)} --rm "
+                f"docker run --env-file {env_file_path}  {' '.join(env_vars)} --rm  "
                 "container-registry.meteoswiss.ch/flexpart-poc/flexpart:containerize "
                 f"{command_str}"
             )

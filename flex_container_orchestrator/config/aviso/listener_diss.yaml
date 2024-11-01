@@ -12,7 +12,7 @@ listeners:
       - type: command
         working_dir: $HOME/flex-container-orchestrator/
         command: >
-          poetry run python3 flex_container_orchestrator/main.py \
+          $HOME/.local/bin/poetry run python3 flex_container_orchestrator/main.py \
             --step "${request.step}" \
             --date "${request.date}" \
             --time "${request.time}" \

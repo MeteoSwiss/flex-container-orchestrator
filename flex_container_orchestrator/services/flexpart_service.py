@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+from flex_container_orchestrator.domain.aggregator_flexpart import run_aggregator
+
 
 def run_command(command: list[str] | str, capture_output: bool = False) -> bytes | None:
     """
@@ -50,7 +52,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
 
     # ====== First part: Run pre-processing for Flexpart ======
     db_mount = os.path.expanduser(f"{os.getenv('DB_MOUNT')}")
-    docker_image = f"{os.getenv('ECR_REPO')}:{os.getenv('TAG')}"
+    docker_image = f"{os.getenv('FLEXPREP_ECR_REPO')}:{os.getenv('FLEXPREP_TAG')}"
     env_file_path = os.path.expanduser(
         "~/flex-container-orchestrator/flex_container_orchestrator/config/.env"
     )
@@ -94,38 +96,10 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
         sys.exit(1)
 
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        aggregator_script_path = os.path.join(
-            script_dir, "..", "domain", "aggregator_flexpart.py"
-        )
+        configurations = run_aggregator(date, time, int(step), db_path)
 
-        aggregator_command = [
-            "python3",
-            aggregator_script_path,
-            "--date",
-            date,
-            "--time",
-            time,
-            "--step",
-            step,
-            "--db_path",
-            db_path,
-        ]
-
-        output = run_command(aggregator_command, capture_output=True)
-        if not output:
-            logging.info(
-                "Flexpart can't be launched. Not enough pre-processed files. Exiting."
-            )
-            sys.exit(0)
-        try:
-            configurations = json.loads(output.decode("utf-8"))
-        except json.JSONDecodeError as e:
-            logging.error("JSON decode error: %s", e)
-            sys.exit(1)
-
-    except subprocess.CalledProcessError:
-        logging.error("Aggregator script encountered an error.")
+    except Exception as e:
+        logging.error("Aggregator encountered an error: %s", e)
         sys.exit(1)
 
     logging.info("Aggregator launch script executed successfully.")
@@ -134,22 +108,24 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     try:
         # Check if configurations is an empty list
         if not configurations:
-            logging.error("Not enough data to launch Flexpart.")
-            sys.exit(1)
+            logging.info("Not enough data to launch Flexpart.")
+            sys.exit(0)
 
         # Loop through each configuration and execute Flexpart
+        docker_image = f"{os.getenv('FLEXPART_ECR_REPO')}:{os.getenv('FLEXPART_TAG')}"
         for config in configurations:
-            env_vars = [f"-e {key}={value}" for key, value in config.items()]
-            command = ["/bin/sh", "-c", "ulimit -a && bash entrypoint.sh"]
-            command_str = " ".join(command)
+            env_vars = [["-e", f"{key.strip()}={value}"] for key, value in config.items()]
 
-            docker_command = (
-                f"docker run --env-file {env_file_path}  {' '.join(env_vars)} --rm  "
-                "container-registry.meteoswiss.ch/flexpart-poc/flexpart:containerize "
-                f"{command_str}"
-            )
+            # Build the Docker command as a list
+            docker_command = [
+                "docker", "run",
+                "--env-file", env_file_path,
+                *[item for sublist in env_vars for item in sublist],
+                "--rm",
+                docker_image,
+            ]
 
-            logging.info("Running: %s", docker_command)
+            logging.info("Running: %s", " ".join(docker_command))
             run_command(docker_command)
 
     except subprocess.CalledProcessError:

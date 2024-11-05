@@ -10,26 +10,6 @@ from typing import List, Optional, Set, Tuple
 
 from flex_container_orchestrator import CONFIG
 
-
-def parse_arguments() -> argparse.Namespace:
-    """
-    Parse command-line arguments.
-
-    Returns:
-        argparse.Namespace: Parsed arguments.
-    """
-    parser = argparse.ArgumentParser(
-        description="Launch Flexpart after processing checks."
-    )
-    parser.add_argument("--date", required=True, help="Date in YYYYMMDD format")
-    parser.add_argument("--time", required=True, help="Time in HH format")
-    parser.add_argument(
-        "--step", required=True, help="Step identifier (lead time in hours)"
-    )
-    parser.add_argument("--db_path", required=True, help="Path to the SQLite database")
-    return parser.parse_args()
-
-
 def connect_db(db_path: str) -> sqlite3.Connection:
     """
     Establish a connection to the SQLite database.
@@ -303,23 +283,31 @@ def create_flexpart_configs(
     return configs
 
 
-def main() -> None:
+def run_aggregator(date: str, time: str, step: int, db_path: str) -> List[dict]:
     """
-    Main function to parse arguments, connect to database, and run Flexpart processing.
-    """
-    args = parse_arguments()
-    time_settings = get_time_settings(CONFIG)
-    conn = connect_db(args.db_path)
-    frt_dt = parse_forecast_datetime(args.date, args.time)
+    Run the aggregator function with the provided arguments.
 
-    if not is_row_processed(conn, frt_dt, args.step):
+    Args:
+        date (str): Date in YYYYMMDD format.
+        time (str): Time in HH format.
+        step (int): Step identifier (lead time in hours).
+        db_path (str): Path to the SQLite database.
+
+    Returns:
+        List[dict]: List of configuration dictionaries for Flexpart.
+    """
+    time_settings = get_time_settings(CONFIG)
+    conn = connect_db(db_path)
+    frt_dt = parse_forecast_datetime(date, time)
+
+    if not is_row_processed(conn, frt_dt, step):
         logging.info("File processing incomplete. Exiting before launching Flexpart.")
         conn.close()
         sys.exit(0)
 
     list_start_times = generate_flexpart_start_times(
         frt_dt,
-        int(args.step),
+        step,
         time_settings["tdelta"],
         time_settings["tfreq_f"],
     )
@@ -331,10 +319,7 @@ def main() -> None:
     processed_items = fetch_processed_items(conn, frt_set)
 
     configs = create_flexpart_configs(all_list_lt, all_list_ltf, processed_items)
-    print(json.dumps(configs))
-
     conn.close()
 
+    return configs
 
-if __name__ == "__main__":
-    main()

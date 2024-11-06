@@ -6,9 +6,13 @@ from flex_container_orchestrator.config.logger import LoggingSettings
 
 
 class TimeSettings(BaseModel):
+    # Number of hours between timesteps
     tincr: int
+    # Number of timesteps to run Flexpart with (temporarily set to 6 timesteps but operational config is 90)
     tdelta: int
+    # Frequency of Flexpart runs in hours
     tfreq_f: int
+    # Frequency of IFS runs in hours
     tfreq: int
 
 

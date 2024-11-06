@@ -7,22 +7,6 @@ The flex-container-orchestrator manages the event driven workflow Flexpart IFS w
 Getting started
 ===============
 
----------------------
-Setup dev environment
----------------------
-
-Instead of running the steps below manually, you can install `mchbuild` and then
-install, test and run the application:
-
-.. code-block:: console
-
-    $ pipx install mchbuild
-    $ cd flex-container-orchestrator
-    $ mchbuild local.build local.test
-    $ mchbuild local.run
-
-Try it out at and stop it with Ctrl-C. More information can be found in :file:`.mch-ci.yml`.
-
 ------------------------------------------------
 Install dependencies & start the project locally
 ------------------------------------------------
@@ -68,6 +52,21 @@ Run the tests and quality tools
 
     $ poetry run mypy flex_container_orchestrator
 
+---------------------------------------------------
+Setup dev environment - Meteoswiss environment only
+---------------------------------------------------
+
+Instead of running the steps below manually, you can install `mchbuild` and then
+install, test and run the application:
+
+.. code-block:: console
+
+    $ pipx install mchbuild
+    $ cd flex-container-orchestrator
+    $ mchbuild local.build local.test
+    $ mchbuild local.run
+
+Try it out at and stop it with Ctrl-C. More information can be found in :file:`.mch-ci.yml`.
 
 ----------------------
 Generate documentation

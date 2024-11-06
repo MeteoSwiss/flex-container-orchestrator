@@ -136,5 +136,3 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     except subprocess.CalledProcessError:
         logger.error("Launch Flexpart script encountered an error.")
         sys.exit(1)
-
-    logger.info("Launch Flexpart script executed successfully.")

@@ -28,7 +28,7 @@ def connect_db(db_path: str) -> sqlite3.Connection:
         sys.exit(1)
 
 
-def is_row_processed(
+def is_lead_time_processed(
     conn: sqlite3.Connection, forecast_ref_time: datetime.datetime, step: str
 ) -> bool:
     """
@@ -299,7 +299,7 @@ def run_aggregator(date: str, time: str, step: int, db_path: str) -> List[dict]:
     conn = connect_db(db_path)
     frt_dt = parse_forecast_datetime(date, time)
 
-    if not is_row_processed(conn, frt_dt, step):
+    if not is_lead_time_processed(conn, frt_dt, step):
         logger.info("File processing incomplete. Exiting before launching Flexpart.")
         conn.close()
         sys.exit(0)
@@ -321,4 +321,3 @@ def run_aggregator(date: str, time: str, step: int, db_path: str) -> List[dict]:
     conn.close()
 
     return configs
-

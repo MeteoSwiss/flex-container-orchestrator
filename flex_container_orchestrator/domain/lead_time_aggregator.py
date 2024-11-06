@@ -142,14 +142,14 @@ def fetch_processed_items(
                 (frt,),
             )
             items_f = cursor.fetchall()
-            for item in items_f:
-                if item[0]:  # processed == True
+             for processed, step in items_f:
+                if processed:
                     frt_str = (
                         frt.strftime("%Y%m%d%H%M")
                         if isinstance(frt, datetime.datetime)
                         else str(frt)
                     )
-                    processed_items.add(frt_str + f"{int(item[1]):02}")
+                    processed_items.add(frt_str + f"{int(step):02}")
     except sqlite3.Error as e:
         logger.error("SQLite query error while fetching processed items: %s", e)
         sys.exit(1)

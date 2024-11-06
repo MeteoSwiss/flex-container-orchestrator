@@ -6,6 +6,8 @@ import sys
 
 from flex_container_orchestrator.domain.aggregator_flexpart import run_aggregator
 
+logger = logging.getLogger(__name__)
+
 
 def run_command(command: list[str] | str, capture_output: bool = False) -> bytes | None:
     """
@@ -16,14 +18,13 @@ def run_command(command: list[str] | str, capture_output: bool = False) -> bytes
             return subprocess.check_output(command).strip()
         subprocess.check_call(command)
     except subprocess.CalledProcessError as e:
-        logging.error(f"Command '{' '.join(command)}' failed with error: {e}")
+        logger.error(f"Command '{' '.join(command)}' failed with error: {e}")
         sys.exit(1)
 
     return None
 
 
 def launch_containers(date: str, location: str, time: str, step: str) -> None:
-    logging.basicConfig(level=logging.INFO)
 
     # Retrieve ECR login password and log in to Docker
     try:
@@ -43,11 +44,11 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
         process.communicate(input=login_password)
 
         if process.returncode != 0:
-            logging.error("Docker login failed. Exiting.")
+            logger.error("Docker login failed. Exiting.")
             sys.exit(1)
 
     except subprocess.CalledProcessError as e:
-        logging.error("Error logging in to Docker: %s", e)
+        logger.error("Error logging in to Docker: %s", e)
         sys.exit(1)
 
     # ====== First part: Run pre-processing for Flexpart ======
@@ -58,7 +59,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     )
 
     if not os.path.exists(db_mount):
-        logging.error("SQLite database directory %s does not exist.", db_mount)
+        logger.error("SQLite database directory %s does not exist.", db_mount)
         sys.exit(1)
 
     try:
@@ -83,32 +84,32 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
         run_command(docker_run_command)  # type: ignore
 
     except subprocess.CalledProcessError:
-        logging.error("Docker run processing failed.")
+        logger.error("Docker run processing failed.")
         sys.exit(1)
 
-    logging.info("Pre-processing container executed successfully.")
+    logger.info("Pre-processing container executed successfully.")
 
     # ====== Second part: Run aggregator_flexpart.py ======
     db_path = os.path.join(db_mount, "sqlite3-db")
 
     if not os.path.exists(db_path):
-        logging.error("Database file %s does not exist.", db_path)
+        logger.error("Database file %s does not exist.", db_path)
         sys.exit(1)
 
     try:
         configurations = run_aggregator(date, time, int(step), db_path)
 
     except Exception as e:
-        logging.error("Aggregator encountered an error: %s", e)
+        logger.error("Aggregator encountered an error: %s", e)
         sys.exit(1)
 
-    logging.info("Aggregator launch script executed successfully.")
+    logger.info("Aggregator launch script executed successfully.")
 
     # ====== Third part: Run Flexpart ======
     try:
         # Check if configurations is an empty list
         if not configurations:
-            logging.info("Not enough data to launch Flexpart.")
+            logger.info("Not enough data to launch Flexpart.")
             sys.exit(0)
 
         # Loop through each configuration and execute Flexpart
@@ -125,11 +126,11 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
                 docker_image,
             ]
 
-            logging.info("Running: %s", " ".join(docker_command))
+            logger.info("Running: %s", " ".join(docker_command))
             run_command(docker_command)
 
     except subprocess.CalledProcessError:
-        logging.error("Launch Flexpart script encountered an error.")
+        logger.error("Launch Flexpart script encountered an error.")
         sys.exit(1)
 
-    logging.info("Launch Flexpart script executed successfully.")
+    logger.info("Launch Flexpart script executed successfully.")

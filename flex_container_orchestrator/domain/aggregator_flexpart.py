@@ -10,6 +10,8 @@ from typing import List, Optional, Set, Tuple
 
 from flex_container_orchestrator import CONFIG
 
+logger = logging.getLogger(__name__)
+
 def connect_db(db_path: str) -> sqlite3.Connection:
     """
     Establish a connection to the SQLite database.
@@ -22,10 +24,10 @@ def connect_db(db_path: str) -> sqlite3.Connection:
     """
     try:
         conn = sqlite3.connect(db_path)
-        logging.info("Connected to SQLite database at %s.", db_path)
+        logger.info("Connected to SQLite database at %s.", db_path)
         return conn
     except sqlite3.Error as e:
-        logging.error("SQLite connection error: %s", e)
+        logger.error("SQLite connection error: %s", e)
         sys.exit(1)
 
 
@@ -55,14 +57,14 @@ def is_row_processed(
         result = cursor.fetchone()
         if result:
             return result[0] == 1
-        logging.info(
+        logger.info(
             "No row found for forecast_ref_time=%s and step=%s.",
             forecast_ref_time,
             step,
         )
         return False
     except sqlite3.Error as e:
-        logging.error("SQLite query error: %s", e)
+        logger.error("SQLite query error: %s", e)
         sys.exit(1)
 
 
@@ -152,7 +154,7 @@ def fetch_processed_items(
                     )
                     processed_items.add(frt_str + f"{int(item[1]):02}")
     except sqlite3.Error as e:
-        logging.error("SQLite query error while fetching processed items: %s", e)
+        logger.error("SQLite query error while fetching processed items: %s", e)
         sys.exit(1)
     return processed_items
 
@@ -168,7 +170,7 @@ def define_config(st: datetime.datetime, et: datetime.datetime) -> dict:
     Returns:
         dict: Configuration dictionary for Flexpart.
     """
-    logging.info("Start and end time to configure Flexpart: %s and %s ", st, et)
+    logger.info("Start and end time to configure Flexpart: %s and %s ", st, et)
 
     configuration = {
         "IBDATE": st.strftime("%Y%m%d"),
@@ -177,7 +179,7 @@ def define_config(st: datetime.datetime, et: datetime.datetime) -> dict:
         "IETIME": et.strftime("%H"),
     }
 
-    logging.info("Configuration to run Flexpart: %s", json.dumps(configuration))
+    logger.debug("Configuration to run Flexpart: %s", json.dumps(configuration))
 
     return configuration
 
@@ -232,7 +234,7 @@ def generate_forecast_times(
     all_list_ltf = []
     all_list_lt = []
     for start_time in list_start_times:
-        logging.info("Start time: %s", start_time)
+        logger.info("Start time: %s", start_time)
         list_ltf = []
         list_lt = []
         for i in range(0, time_settings["tdelta"], time_settings["tincr"]):
@@ -301,7 +303,7 @@ def run_aggregator(date: str, time: str, step: int, db_path: str) -> List[dict]:
     frt_dt = parse_forecast_datetime(date, time)
 
     if not is_row_processed(conn, frt_dt, step):
-        logging.info("File processing incomplete. Exiting before launching Flexpart.")
+        logger.info("File processing incomplete. Exiting before launching Flexpart.")
         conn.close()
         sys.exit(0)
 

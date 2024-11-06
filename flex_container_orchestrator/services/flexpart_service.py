@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import subprocess
@@ -7,7 +6,6 @@ import sys
 from flex_container_orchestrator.domain.aggregator_flexpart import run_aggregator
 
 logger = logging.getLogger(__name__)
-
 
 def run_command(command: list[str] | str, capture_output: bool = False) -> bytes | None:
     """
@@ -23,21 +21,23 @@ def run_command(command: list[str] | str, capture_output: bool = False) -> bytes
 
     return None
 
-
-def launch_containers(date: str, location: str, time: str, step: str) -> None:
-
-    # Retrieve ECR login password and log in to Docker
+def login_ecr(region="eu-central-2", repo_url="493666016161.dkr.ecr.eu-central-2.amazonaws.com"):
+    """
+    Log in to AWS ECR by retrieving the login password and passing it to Docker login.
+    """
     try:
-        login_command = ["aws", "ecr", "get-login-password", "--region", "eu-central-2"]
+        # Step 1: Get the ECR login password
+        login_command = ["aws", "ecr", "get-login-password", "--region", region]
         login_password = run_command(login_command, capture_output=True)
 
+        # Step 2: Log in to Docker using the password
         docker_login_command = [
             "docker",
             "login",
             "--username",
             "AWS",
             "--password-stdin",
-            "493666016161.dkr.ecr.eu-central-2.amazonaws.com",
+            repo_url,
         ]
 
         process = subprocess.Popen(docker_login_command, stdin=subprocess.PIPE)
@@ -50,6 +50,10 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     except subprocess.CalledProcessError as e:
         logger.error("Error logging in to Docker: %s", e)
         sys.exit(1)
+
+def launch_containers(date: str, location: str, time: str, step: str) -> None:
+    # Retrieve ECR login password and log in to Docker
+    login_ecr()
 
     # ====== First part: Run pre-processing for Flexpart ======
     db_mount = os.path.expanduser(f"{os.getenv('DB_MOUNT')}")

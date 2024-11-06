@@ -1,8 +1,7 @@
 flex-container-orchestrator
 ===========================
 
-The flex-container-orchestrator manages Aviso notifications and triggers the flexprep and flexpart-ifs containers,
-as well as the file aggregation script for Flexpart.
+The flex-container-orchestrator manages the event driven workflow Flexpart IFS workflow, based on events from Aviso. The repo coordinates both flexprep (pre-processing of raw IFS data) and flexpart-ifs containers, ensuring all required lead time data is processed before launching Flexpart.
 
 ===============
 Getting started
@@ -44,7 +43,7 @@ Install dependencies & start the project locally
 
 .. code-block:: console
 
-    $ poetry run uvicorn --port 8080 --reload flex_container_orchestrator.main:app
+    $ poetry run python3 flex_container_orchestrator/main.py  --date {date} --time {time} --step {step} --location {location}    
 
 -------------------------------
 Run the tests and quality tools

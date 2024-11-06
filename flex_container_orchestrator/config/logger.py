@@ -1,5 +1,5 @@
 """
-Note: This script from mchpy (MeteoSwiss Blueprint) was added here because I couldn't install mchpy from outside of the MeteoSwiss network.
+Note: This script is taken from mchpy (MeteoSwiss' Python common library) it is not currently installable outside of the MeteoSwiss network.
 
 Logging configuration including http request auditing
 """

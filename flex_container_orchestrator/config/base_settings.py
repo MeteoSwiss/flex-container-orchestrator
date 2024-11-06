@@ -1,6 +1,5 @@
 """
-Note: This script from mchpy (MeteoSwiss Blueprint) was added here because I could not use
-mchpyy from outside of the MeteoSwiss network.
+Note: This script is taken from mchpy (MeteoSwiss' Python common library) it is not currently installable outside of the MeteoSwiss network.
 
 This module introduces two custom classes that leverage Pydantic's capabilities: a custom BaseModel called
  SubscriptableBaseModel and a custom BaseSettings class BaseServiceSettings.

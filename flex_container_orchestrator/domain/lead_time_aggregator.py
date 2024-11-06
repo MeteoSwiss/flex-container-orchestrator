@@ -1,12 +1,9 @@
-#!/usr/bin/env python3
-
-import argparse
 import datetime
 import json
 import logging
 import sqlite3
 import sys
-from typing import List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 
 from flex_container_orchestrator import CONFIG
 

@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 
-from flex_container_orchestrator.domain.aggregator_flexpart import run_aggregator
+from flex_container_orchestrator.domain.lead_time_aggregator import run_aggregator
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
 
     logger.info("Pre-processing container executed successfully.")
 
-    # ====== Second part: Run aggregator_flexpart.py ======
+    # ====== Second part: Run lead_time_aggregator.py ======
     db_path = os.path.join(db_mount, "sqlite3-db")
 
     if not os.path.exists(db_path):

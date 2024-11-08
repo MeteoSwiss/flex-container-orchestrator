@@ -3,32 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flex_container_orchestrator.domain.lead_time_aggregatorimport (
-    convert_time_to_frt, define_config, fetch_processed_items,
-    generate_flexpart_start_times, is_lead_time_processed)
-
-
-@pytest.mark.parametrize(
-    "fetchone_return, expected_result",
-    [
-        ((1,), True),  # Case where row is processed
-        ((0,), False),  # Case where row is not processed
-    ],
-)
-def test_lead_time_processed(fetchone_return, expected_result):
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-
-    mock_conn.cursor.return_value = mock_cursor
-
-    mock_cursor.execute.return_value = mock_cursor  # execute returns the cursor itself
-    mock_cursor.fetchone.return_value = (
-        fetchone_return  # fetchone returns the tuple for testing
-    )
-
-    result = is_lead_time_processed(mock_conn, datetime.datetime(2023, 10, 22, 6, 0), "12")
-
-    assert result == expected_result
+from flex_container_orchestrator.domain.lead_time_aggregator import (
+    generate_forecast_label, define_config, fetch_processed_forecasts,
+    generate_flexpart_start_times)
 
 
 @pytest.mark.parametrize(
@@ -72,19 +49,19 @@ def test_generate_flexpart_start_times(frt_dt, lead_time, tdelta, tfreq_f, expec
         (datetime.datetime(2023, 10, 22, 12, 0), 6, "20231022060006"),
     ],
 )
-def test_convert_time_to_frt(time, tfreq, expected):
-    result = convert_time_to_frt(time, tfreq)
+def test_generate_forecast_label(time, tfreq, expected):
+    result = generate_forecast_label(time, tfreq)
     assert result == expected
 
 
 @patch("sqlite3.connect")
-def test_fetch_processed_items(mock_connect):
+def test_fetch_processed_forecasts(mock_connect):
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
     mock_conn.cursor.return_value = mock_cursor
     mock_cursor.fetchall.return_value = [(True, "12"), (False, "24")]
     frt_s = {datetime.datetime(2023, 10, 22, 6, 0)}
-    result = fetch_processed_items(mock_conn, frt_s)
+    result = fetch_processed_forecasts(mock_conn, frt_s)
     assert result == {"20231022060012"}
 
 

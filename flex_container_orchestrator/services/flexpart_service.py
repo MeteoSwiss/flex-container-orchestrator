@@ -111,11 +111,6 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
 
     # ====== Third part: Run Flexpart ======
     try:
-        # Check if configurations is an empty list
-        if not configurations:
-            logger.info("Not enough data to launch Flexpart.")
-            sys.exit(0)
-
         # Loop through each configuration and execute Flexpart
         docker_image = f"{os.getenv('FLEXPART_ECR_REPO')}:{os.getenv('FLEXPART_TAG')}"
         for config in configurations:

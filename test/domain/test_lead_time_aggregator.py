@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flex_container_orchestrator.domain.aggregator_flexpart import (
+from flex_container_orchestrator.domain.lead_time_aggregatorimport (
     convert_time_to_frt, define_config, fetch_processed_items,
-    generate_flexpart_start_times, is_row_processed)
+    generate_flexpart_start_times, is_lead_time_processed)
 
 
 @pytest.mark.parametrize(
@@ -15,7 +15,7 @@ from flex_container_orchestrator.domain.aggregator_flexpart import (
         ((0,), False),  # Case where row is not processed
     ],
 )
-def test_is_row_processed(fetchone_return, expected_result):
+def test_lead_time_processed(fetchone_return, expected_result):
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
 
@@ -26,7 +26,7 @@ def test_is_row_processed(fetchone_return, expected_result):
         fetchone_return  # fetchone returns the tuple for testing
     )
 
-    result = is_row_processed(mock_conn, datetime.datetime(2023, 10, 22, 6, 0), "12")
+    result = is_lead_time_processed(mock_conn, datetime.datetime(2023, 10, 22, 6, 0), "12")
 
     assert result == expected_result
 

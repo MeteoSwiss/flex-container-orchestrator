@@ -3,7 +3,6 @@ import json
 import logging
 import sqlite3
 import sys
-from typing import List, Set, Tuple
 
 from flex_container_orchestrator import CONFIG
 
@@ -28,48 +27,15 @@ def connect_db(db_path: str) -> sqlite3.Connection:
         sys.exit(1)
 
 
-def is_lead_time_processed(
-    conn: sqlite3.Connection, forecast_ref_time: datetime.datetime, step: str
-) -> bool:
-    """
-    Check if a specific row in the database has been processed.
-
-    Args:
-        conn (sqlite3.Connection): SQLite connection object.
-        forecast_ref_time (datetime): Forecast reference time
-        step (str): Step identifier.
-
-    Returns:
-        bool: True if processed, False otherwise.
-    """
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT processed FROM uploaded
-            WHERE forecast_ref_time = ? AND step = ?
-        """,
-            (forecast_ref_time, step),
-        )
-        result = cursor.fetchone()
-        if result:
-            return result[0] == 1
-        logger.info(
-            "No row found for forecast_ref_time=%s and step=%s.",
-            forecast_ref_time,
-            step,
-        )
-        return False
-    except sqlite3.Error as e:
-        logger.error("SQLite query error: %s", e)
-        sys.exit(1)
-
-
 def generate_flexpart_start_times(
     frt_dt: datetime.datetime, lead_time: int, tdelta: int, tfreq_f: int
-) -> List[datetime.datetime]:
+) -> list[datetime.datetime]:
     """
-    Generate a list of Flexpart run start times.
+    Generates a list of start reference times for running Flexpart simulations.
+
+    The start times will depend on the forecast reference time and lead time that
+    have been just pre-processed, the desired number of time steps for the Flexpart run,
+    and the frequency of the flexpart runs.
 
     Args:
         frt_dt (datetime.datetime): Forecast reference datetime.
@@ -97,31 +63,37 @@ def generate_flexpart_start_times(
     return list_start_times
 
 
-def convert_time_to_frt(time: datetime.datetime, tfreq: int) -> str:
+def generate_forecast_label(lead_time: datetime.datetime, tfreq: int) -> str:
     """
-    Convert time object into IFS forecast objects to use.
+    Returns a string in the format "{reference_time}_{step}" based on
+    the given lead_time (i.e. forecast reference time + step).
+
+    The reference_time corresponds to the latest IFS forecast run for the specified lead time.
+    If the lead_time aligns with the start of an IFS simulation, it uses the previous forecast
+    run with the appropriate lead time instead of the forecast at step 0.
 
     Args:
-        time (datetime.datetime): Datetime object.
+        lead_time (datetime.datetime): Forecasts leadtime
         tfreq (int): Frequency of IFS forecast times in hours.
 
     Returns:
         str: Forecast reference time (YYYYMMDDHH) followed by the lead time (HH)
+        in the format "{reference_time}_{step}"
     """
-    if time.hour % tfreq != 0:
-        frt_st = time - datetime.timedelta(hours=time.hour % tfreq)
-        lt = time.hour % tfreq
+    if lead_time.hour % tfreq != 0:
+        frt_st = lead_time - datetime.timedelta(hours=lead_time.hour % tfreq)
+        lt = lead_time.hour % tfreq
     else:
-        frt_st = time - datetime.timedelta(hours=tfreq)
+        frt_st = lead_time - datetime.timedelta(hours=tfreq)
         lt = tfreq
     return frt_st.strftime("%Y%m%d%H%M") + f"{lt:02}"
 
 
-def fetch_processed_items(
-    conn: sqlite3.Connection, frt_s: Set[datetime.datetime]
-) -> Set[str]:
+def fetch_processed_forecasts(
+    conn: sqlite3.Connection, frt_s: set[datetime.datetime]
+) -> set[str]:
     """
-    Fetch all processed items from the database.
+    Fetch all processed forecasts from the database for a specific reference time.
 
     Args:
         conn (sqlite3.Connection): SQLite connection object.
@@ -142,7 +114,7 @@ def fetch_processed_items(
                 (frt,),
             )
             items_f = cursor.fetchall()
-             for processed, step in items_f:
+            for processed, step in items_f:
                 if processed:
                     frt_str = (
                         frt.strftime("%Y%m%d%H%M")
@@ -156,24 +128,24 @@ def fetch_processed_items(
     return processed_items
 
 
-def define_config(st: datetime.datetime, et: datetime.datetime) -> dict:
+def define_config(start_time: datetime.datetime, end_time: datetime.datetime) -> dict:
     """
-    Define configuration for Flexpart.
+    Define input configuration for Flexpart based on provided start and end tims.
 
     Args:
-        st (datetime.datetime): Start time.
-        et (datetime.datetime): End time.
+        start_time (datetime.datetime): Start time.
+        end_time (datetime.datetime): End time.
 
     Returns:
         dict: Configuration dictionary for Flexpart.
     """
-    logger.info("Start and end time to configure Flexpart: %s and %s ", st, et)
+    logger.debug("Start and end time to configure Flexpart: %s and %s ", start_time, end_time)
 
     configuration = {
-        "IBDATE": st.strftime("%Y%m%d"),
-        "IBTIME": st.strftime("%H"),
-        "IEDATE": et.strftime("%Y%m%d"),
-        "IETIME": et.strftime("%H"),
+        "IBDATE": start_time.strftime("%Y%m%d"),  # Start date in YYYYMMDD format
+        "IBTIME": start_time.strftime("%H"),      # Start time in HH format
+        "IEDATE": end_time.strftime("%Y%m%d"),    # End date in YYYYMMDD format
+        "IETIME": end_time.strftime("%H"),        # End time in HH format
     }
 
     logger.debug("Configuration to run Flexpart: %s", json.dumps(configuration))
@@ -215,34 +187,42 @@ def parse_forecast_datetime(date_str: str, time_str: str) -> datetime.datetime:
 
 
 def generate_forecast_times(
-    list_start_times: List[datetime.datetime], time_settings: dict
-) -> Tuple[List[List[str]], List[List[datetime.datetime]], Set[str]]:
+    start_times: list[datetime.datetime], time_settings: dict
+) -> tuple[list[list[str]], list[list[datetime.datetime]], set[str]]:
     """
-    Generate forecast times for Flexpart runs.
+    Generates a list of all required forecasts for Flexpart simulations.
 
     Args:
-        list_start_times (list of datetime.datetime): List of Flexpart run start times.
-        time_settings (dict): Time settings dictionary.
-
+        start_times (list[datetime]): List of Flexpart run start reference times.
+        time_settings (dict[str, int]): Configuration containing 'tdelta' (total forecast duration in hours),
+            'tincr' (increment step in hours), and 'tfreq' (frequency interval).
     Returns:
-        tuple: Tuple containing lists of forecast times, lead times, and all steps.
+        tuple[list[list[str]], list[list[datetime]], set[str]]:
+            - all_input_forecasts: A nested list where each sublist contains forecast labels
+              for each Flexpart run in the format "{reference_time}_{step}".
+            - all_flexpart_leadtimes: A nested list where each sublist contains datetime objects
+              representing the leadtimes (reference_time + step) for each Flexpart run.
+            - all_input_forecasts_set: A set of unique forecasts in the format "{reference_time}_{step}"
+              required for Flexpart simulations.
     """
-    all_steps = set()
-    all_list_ltf = []
-    all_list_lt = []
-    for start_time in list_start_times:
-        logger.info("Start time: %s", start_time)
-        list_ltf = []
-        list_lt = []
-        for i in range(0, time_settings["tdelta"], time_settings["tincr"]):
-            time = start_time + datetime.timedelta(hours=i)
-            forecast = convert_time_to_frt(time, time_settings["tfreq"])
-            list_ltf.append(forecast)
-            list_lt.append(time)
-            all_steps.add(forecast)
-        all_list_ltf.append(list_ltf)
-        all_list_lt.append(list_lt)
-    return all_list_ltf, all_list_lt, all_steps
+    time_delta = time_settings['tdelta']
+    time_increment = time_settings['tincr']
+    run_frequency = time_settings['tfreq']
+
+    all_input_forecasts_set = set()
+    all_input_forecasts = []
+    all_flexpart_leadtimes = []
+
+    for start_time in start_times:
+        lead_times = [start_time + datetime.timedelta(hours=i) for i in range(0, time_delta, time_increment)]
+        input_forecasts = [generate_forecast_label(lt, run_frequency) for lt in lead_times]
+
+        all_input_forecasts_set.update(input_forecasts)
+        all_input_forecasts.append(input_forecasts)
+        all_flexpart_leadtimes.append(lead_times)
+
+    return all_input_forecasts, all_flexpart_leadtimes, all_input_forecasts_set
+
 
 
 def strip_lead_time(forecast: str) -> datetime.datetime:
@@ -259,65 +239,79 @@ def strip_lead_time(forecast: str) -> datetime.datetime:
 
 
 def create_flexpart_configs(
-    all_list_lt: List[List[datetime.datetime]],
-    all_list_ltf: List[List[str]],
-    processed_items: Set[str],
-) -> List[dict]:
+    all_flexpart_leadtimes: list[list[datetime.datetime]],
+    all_input_forecasts: list[list[str]],
+    processed_forecasts: set[str],
+) -> list[dict]:
     """
-    Create Flexpart configurations based on processed items.
+    Create Flexpart input configurations based on processed forecasts.
 
     Args:
-        all_list_lt (list of list of datetime.datetime): List of lead times.
-        all_list_ltf (list of list of str): List of forecast reference times with lead times.
-        processed_items (set of str): Set of processed item identifiers.
+        - all_input_forecasts: A nested list where each sublist contains forecast labels
+            for each Flexpart run in the format "{reference_time}_{step}".
+        - all_flexpart_leadtimes: A nested list where each sublist contains datetime objects
+            representing the lead times for each Flexpart run.
+        - processed_forecasts (set of str): Set of forecasts marked as processed and retrieved from the DB for
+            which have the same reference times as the forecasts needed for the Flexpart simulation
 
     Returns:
-        list of dict: List of Flexpart configuration dictionaries.
+        list of dict: List of Flexpart configuration dictionaries. If no valid
+            configurations can be created, an empty list is returned.
     """
     configs = []
-    for i, flexpart_run in enumerate(all_list_ltf):
-        if all(item in processed_items for item in flexpart_run):
-            config = define_config(all_list_lt[i][0], all_list_lt[i][-1])
+    for run_index, input_forecasts_for_run in enumerate(all_input_forecasts):
+        if all(forecast in processed_forecasts for forecast in input_forecasts_for_run):
+            config = define_config(all_flexpart_leadtimes[run_index][0], all_flexpart_leadtimes[run_index][-1])
             configs.append(config)
     return configs
 
 
-def run_aggregator(date: str, time: str, step: int, db_path: str) -> List[dict]:
+def run_aggregator(date: str, time: str, step: int, db_path: str) -> list[dict]:
     """
-    Run the aggregator function with the provided arguments.
+    Checks if Flexpart can be launched with the processed new lead time and prepares input configurations.
 
     Args:
-        date (str): Date in YYYYMMDD format.
-        time (str): Time in HH format.
-        step (int): Step identifier (lead time in hours).
+        date (str): The forecast reference date in YYYYMMDD format.
+        time (str): The forecast reference time in HH format.
+        step (int): The lead time in hours.
         db_path (str): Path to the SQLite database.
 
     Returns:
-        List[dict]: List of configuration dictionaries for Flexpart.
+        list[dict]: List of configuration dictionaries for Flexpart.
     """
     time_settings = get_time_settings(CONFIG)
-    conn = connect_db(db_path)
-    frt_dt = parse_forecast_datetime(date, time)
 
-    if not is_lead_time_processed(conn, frt_dt, step):
-        logger.info("File processing incomplete. Exiting before launching Flexpart.")
-        conn.close()
-        sys.exit(0)
+    # Use a context manager for the database connection to ensure proper resource cleanup
+    with connect_db(db_path) as conn:
+        try:
+            forecast_leadtime = parse_forecast_datetime(date, time)
+            start_times = generate_flexpart_start_times(
+                forecast_leadtime,
+                step,
+                time_settings["tdelta"],
+                time_settings["tfreq_f"]
+            )
 
-    list_start_times = generate_flexpart_start_times(
-        frt_dt,
-        step,
-        time_settings["tdelta"],
-        time_settings["tfreq_f"],
-    )
-    all_list_ltf, all_list_lt, all_steps = generate_forecast_times(
-        list_start_times, time_settings
-    )
+            input_forecasts, flexpart_leadtimes, input_forecasts_set = generate_forecast_times(
+                start_times, time_settings
+            )
 
-    frt_set = {strip_lead_time(forecast) for forecast in all_steps}
-    processed_items = fetch_processed_items(conn, frt_set)
+            # Retrieve processed forecasts from the database
+            processed_forecasts = fetch_processed_forecasts(
+                conn, {strip_lead_time(forecast) for forecast in input_forecasts_set}
+            )
 
-    configs = create_flexpart_configs(all_list_lt, all_list_ltf, processed_items)
-    conn.close()
+            # Create input configurations if processed forecasts are ready
+            configs = create_flexpart_configs(
+                flexpart_leadtimes, input_forecasts, processed_forecasts
+            )
 
-    return configs
+            if not configs:
+                logger.info("Not enough pre-processed forecasts to run Flexpart.")
+                sys.exit(0)
+
+            return configs
+
+        except Exception as e:
+            logger.error("An error occurred while running the aggregator: %s", e)
+            raise

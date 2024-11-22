@@ -109,25 +109,47 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
 
     logger.info("Aggregator launch script executed successfully.")
 
-    # ====== Third part: Run Flexpart ======
+    # ====== Third part: Run Flexpart and Pyflexplot ======
     try:
+        flexpart_image = f"{os.getenv('FLEXPART_ECR_REPO')}:{os.getenv('FLEXPART_TAG')}"
+        pyflexplot_image = f"{os.getenv('PYFLEXPLOT_ECR_REPO')}:{os.getenv('PYFLEXPLOT_TAG')}"
+
         # Loop through each configuration and execute Flexpart
-        docker_image = f"{os.getenv('FLEXPART_ECR_REPO')}:{os.getenv('FLEXPART_TAG')}"
         for config in configurations:
             env_vars = [["-e", f"{key.strip()}={value}"] for key, value in config.items()]
 
-            # Build the Docker command as a list
-            docker_command = [
+            # Docker command for Flexpart as a list
+            docker_command_flexpart = [
                 "docker", "run",
                 "--env-file", env_file_path,
                 *[item for sublist in env_vars for item in sublist],
                 "--rm",
-                docker_image,
+                flexpart_image,
             ]
 
-            logger.info("Running: %s", " ".join(docker_command))
-            run_command(docker_command)
+            logger.info("Running: %s", " ".join(docker_command_flexpart))
+            run_command(docker_command_flexpart)
+
+            s3_dest_bucket = os.environ.get("MAIN__AWS__S3__OUTPUT__NAME", "pyflexplot-output")
+            s3_input_bucket = os.environ.get("MAIN__AWS__S3__INPUT__NAME", "flexpart-output")
+
+            # Docker command for Pyflexplot as a list
+            docker_command_pyflexplot = [
+                "docker", "run",
+                "--env-file", env_file_path,
+                "--rm",
+                pyflexplot_image,
+                "--preset", os.environ.get("preset", ""),
+                "--merge-pdfs",
+                f"--dest=s3://{s3_dest_bucket}",
+                "--setup", "infile",
+                f"s3://{s3_input_bucket}/{config['IBDATE']}{config['IBTIME']}/sandbox/grid_conc_{config['IBDATE']}{config['IBTIME']}0000.nc",
+                "--setup", "base_time", f"{config['IBDATE']}{config['IBTIME']}"
+            ]
+
+            logger.info("Running: %s", " ".join(docker_command_pyflexplot))
+            run_command(docker_command_pyflexplot)
 
     except subprocess.CalledProcessError:
-        logger.error("Launch Flexpart script encountered an error.")
+        logger.error("Launch Flexpart and Pyflexplot encountered an error.")
         sys.exit(1)

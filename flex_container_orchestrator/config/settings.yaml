@@ -8,6 +8,9 @@ logging:
     flex_container_orechestrator.config.http_audit: INFO
 main:
   app_name: flex-container-orchestrator
+  db:
+    path: /home/nburgdor/.sqlite/
+    name: sqlite3-db
   time_settings:
     # Number of hours between timesteps
     tincr: 1

@@ -15,11 +15,14 @@ class TimeSettings(BaseModel):
     # Frequency of IFS runs in hours
     tfreq: int
 
+class DBTableSettings(BaseModel):
+    path: str
+    name: str
 
 class AppSettings(BaseModel):
     app_name: str
     time_settings: TimeSettings
-
+    db: DBTableSettings
 
 class ServiceSettings(BaseServiceSettings):
     logging: LoggingSettings

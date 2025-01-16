@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 import sqlite3
 import sys
 
@@ -130,7 +131,7 @@ def fetch_processed_forecasts(
 
 def define_config(start_time: datetime.datetime, end_time: datetime.datetime) -> dict:
     """
-    Define input configuration for Flexpart based on provided start and end tims.
+    Define input configuration for Flexpart based on provided start and end times.
 
     Args:
         start_time (datetime.datetime): Start time.
@@ -146,6 +147,8 @@ def define_config(start_time: datetime.datetime, end_time: datetime.datetime) ->
         "IBTIME": start_time.strftime("%H"),      # Start time in HH format
         "IEDATE": end_time.strftime("%Y%m%d"),    # End date in YYYYMMDD format
         "IETIME": end_time.strftime("%H"),        # End time in HH format
+        "FORECAST_DATETIME": start_time.strftime("%Y%m%d%H%M"), # Fcst ref time in YYYYMMDDHHMM format
+        "RELEASE_SITE_NAME": os.environ.get("RELEASE_SITE_NAME", "BEZ") # Specify the release site in short form (ie BEZ/LEI..)
     }
 
     logger.debug("Configuration to run Flexpart: %s", json.dumps(configuration))
@@ -266,7 +269,7 @@ def create_flexpart_configs(
     return configs
 
 
-def run_aggregator(date: str, time: str, step: int, db_path: str) -> list[dict]:
+def run_aggregator(date: str, time: str, step: int) -> list[dict]:
     """
     Checks if Flexpart can be launched with the processed new lead time and prepares input configurations.
 
@@ -274,19 +277,18 @@ def run_aggregator(date: str, time: str, step: int, db_path: str) -> list[dict]:
         date (str): The forecast reference date in YYYYMMDD format.
         time (str): The forecast reference time in HH format.
         step (int): The lead time in hours.
-        db_path (str): Path to the SQLite database.
 
     Returns:
         list[dict]: List of configuration dictionaries for Flexpart.
     """
     time_settings = get_time_settings(CONFIG)
 
-    # Use a context manager for the database connection to ensure proper resource cleanup
-    with connect_db(db_path) as conn:
+    DBtable = os.path.join(CONFIG.main.db.path, CONFIG.main.db.name)
+    with connect_db(DBtable) as conn:
         try:
-            forecast_leadtime = parse_forecast_datetime(date, time)
+            forecast_reftime = parse_forecast_datetime(date, time)
             start_times = generate_flexpart_start_times(
-                forecast_leadtime,
+                forecast_reftime,
                 step,
                 time_settings["tdelta"],
                 time_settings["tfreq_f"]

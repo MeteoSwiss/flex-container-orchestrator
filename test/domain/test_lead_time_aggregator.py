@@ -74,5 +74,7 @@ def test_define_config():
         "IBTIME": "06",
         "IEDATE": "20231022",
         "IETIME": "18",
+        "FORECAST_DATETIME": "202310220600",
+        "RELEASE_SITE_NAME": "BEZ"
     }
     assert result == expected_config

@@ -1,0 +1,56 @@
+services:
+  flexprep:
+    image: "<SECRETS>.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/dispersionmodelling/flexpart-ifs/flexprep:2411.85789914152b732ef17ad65bd7d6e57ecb30ee3d"
+    volumes:
+      - "${MAIN__DB_PATH}:/src/db/"
+    command: ["--step", "${STEP}", "--date", "${DATE}", "--time", "${TIME}", "--location", "${LOCATION}"]
+    environment:
+      - SVC__MAIN__S3_BUCKETS__INPUT__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - SVC__MAIN__S3_BUCKETS__INPUT__NAME=flexpart-input
+      - SVC__MAIN__S3_BUCKETS__OUTPUT__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - SVC__MAIN__S3_BUCKETS__OUTPUT__NAME=flexprep-output
+      - SVC__MAIN__TIME_SETTINGS__TINCR=1
+      - SVC__MAIN__TIME_SETTINGS__TSTART=0
+      - S3_ACCESS_KEY=<SECRETS>
+      - S3_SECRET_KEY=<SECRETS>
+  flexpart:
+    image: "<SECRETS>.dkr.ecr.eu-central-2.amazonaws.com/dispersionmodelling/flexpart-ifs-devt:containerizedev"
+    volumes:
+      - "${MAIN__DB_PATH}:/scratch/db/"
+    environment:
+      - MAIN__AWS__S3__NWP_MODEL_DATA__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - MAIN__AWS__S3__NWP_MODEL_DATA__NAME=flexprep-output
+      - MAIN__AWS__S3__NWP_MODEL_DATA__PLATFORM=other
+      - MAIN__AWS__S3__OUTPUT__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - MAIN__AWS__S3__OUTPUT__NAME=flexpart-output
+      - MAIN__AWS__S3__OUTPUT__PLATFORM=other
+      - MAIN__AWS__DB__NWP_MODEL_DATA__NAME=/scratch/db/sqlite3-db
+      - MAIN__AWS__DB__NWP_MODEL_DATA__BACKEND_TYPE=sqlite
+      - AWS_ACCESS_KEY_ID=<SECRETS>
+      - AWS_SECRET_ACCESS_KEY=<SECRETS>
+      - TDELTA=6
+      - TFREQ_F=6
+      - TFREQ=6
+      - RELEASE_SITE_NAME=${RELEASE_SITE_NAME}
+      - DEPLOY_SITE=AWS
+      - IBDATE=${IBDATE}
+      - IBTIME=${IBTIME}
+      - IEDATE=${IEDATE} 
+      - IETIME=${IETIME}
+      - FORECAST_DATETIME=${FORECAST_DATETIME}
+  pyflexplot:
+    image: "<SECRETS>.dkr.ecr.eu-central-2.amazonaws.com/dispersionmodelling/pyflexplot-devt:main"
+    environment:
+      - MAIN__AWS__S3__INPUT__NAME=flexpart-output
+      - MAIN__AWS__S3__INPUT__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - MAIN__AWS__S3__OUTPUT__NAME=pyflexplot-output
+      - MAIN__AWS__S3__OUTPUT__ENDPOINT_URL=https://object-store.os-api.cci1.ecmwf.int
+      - AWS_ACCESS_KEY_ID=<SECRETS>
+      - AWS_SECRET_ACCESS_KEY=<SECRETS>
+    command: [
+      "--preset", "${PRESET}",
+      "--merge-pdfs",
+      "--dest=s3://pyflexplot-output",
+      "--setup", "infile", "s3://flexpart-output/${IBDATE}_${IBTIME}/${RELEASE_SITE_NAME}/grid_conc_${IBDATE}${IBTIME}0000.nc",
+      "--setup", "base_time", "${IBDATE}${IBTIME}"
+    ]

@@ -23,10 +23,15 @@ def run_command(command: list[str] | str, capture_output: bool = False) -> bytes
 
     return None
 
-def login_ecr(region="eu-central-2", repo_url="493666016161.dkr.ecr.eu-central-2.amazonaws.com"):
+def login_ecr():
     """
     Log in to AWS ECR by retrieving the login password and passing it to Docker login.
     """
+    region = os.getenv("AWS_REGION", "eu-central-2")
+    repo_url = f"{os.getenv('AWS_ACCOUNT_ID')}.dkr.ecr.{region}.amazonaws.com"
+
+    if "None" in repo_url:
+        raise ValueError("AWS_ACCOUNT_ID environment variable is not set")
     try:
         # Step 1: Get the ECR login password
         login_command = ["aws", "ecr", "get-login-password", "--region", region, "--profile", "ecr-readonly"]
@@ -53,7 +58,7 @@ def login_ecr(region="eu-central-2", repo_url="493666016161.dkr.ecr.eu-central-2
         logger.error("Error logging in to Docker: %s", e)
         sys.exit(1)
 
-def launch_containers(date: str, location: str, time: str, step: str) -> None:
+def main(date: str, location: str, time: str, step: str) -> None:
     # Retrieve ECR login password and log in to Docker
     login_ecr()
 
@@ -64,19 +69,19 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
     os.environ["STEP"] = step
     os.environ["MAIN__DB_PATH"] = CONFIG.main.db.path
 
+    # ====== Run flexprep ======
     try:
-        # Run Docker Compose to launch services
+        # Run Docker Compose to launch flexprep
         docker_compose_command = ["docker", "compose", "run", "--rm", "flexprep"]
         run_command(docker_compose_command)
 
     except subprocess.CalledProcessError:
-        logger.error("Docker Compose run failed.")
+        logger.error("Flexprep failed.")
         sys.exit(1)
 
     logger.info("Pre-processing container executed successfully.")
 
-    # ====== Second part: Run lead_time_aggregator.py ======
-
+    # ====== Run lead_time_aggregator.py ======
     try:
         configurations = run_aggregator(date, time, int(step))
 
@@ -86,7 +91,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
 
     logger.info("Aggregator launch script executed successfully.")
 
-    # ====== Third part: Run Flexpart and Pyflexplot ======
+    # ====== Run Flexpart and Pyflexplot ======
     for config in configurations:
         # Set environment variables for the current configuration
         os.environ["IBDATE"] = config["IBDATE"]
@@ -103,7 +108,7 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
             run_command(docker_compose_command)
 
         except subprocess.CalledProcessError:
-            logger.error("Error running Docker Compose for configuration: %s", config)
+            logger.error("Error running Flexpart for configuration: %s", config)
             sys.exit(1)
 
         try:
@@ -112,5 +117,5 @@ def launch_containers(date: str, location: str, time: str, step: str) -> None:
             run_command(docker_compose_command)
 
         except subprocess.CalledProcessError:
-            logger.error("Error running Docker Compose for configuration: %s", config)
+            logger.error("Error running Pyflexplot for configuration: %s", config)
             sys.exit(1)

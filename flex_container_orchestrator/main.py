@@ -19,7 +19,7 @@ def main() -> None:
         "--location",
         type=str,
         required=True,
-        help="Location parameter"
+        help="S3 object prefix e.g. s3://flexpart-input/P1S011818000011900001"
     )
 
     parser.add_argument(
@@ -37,7 +37,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    flexpart_service.launch_containers(args.date, args.location, args.time, args.step)
+    flexpart_service.main(args.date, args.location, args.time, args.step)
 
 
 if __name__ == "__main__":

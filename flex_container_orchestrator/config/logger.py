@@ -13,21 +13,12 @@ from pydantic import BaseModel, field_validator
 from pydantic_settings import SettingsConfigDict
 from pythonjsonlogger import jsonlogger
 
-from flex_container_orchestrator.config import http_audit
 
 _logger: dict = {
     "version": 1,
     # without the following option, using apply_logging_settings too late is dangerous because all loggers which were
     # previously known would be silently disabled
     "disable_existing_loggers": False,
-    "filters": {
-        "standard_request_id": {
-            "()": "flex_container_orchestrator.config.logger.StandardRequestIdFilter",
-        },
-        "json_request_id": {
-            "()": "flex_container_orchestrator.config.logger.JsonRequestIdFilter",
-        },
-    },
     "formatters": {
         "standard": {
             "format": "{asctime} {request_id}{levelname:>8s} {process} --- [{threadName:>15s}] {name_with_func:40}: "
@@ -42,7 +33,6 @@ _logger: dict = {
         "console": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
-            "filters": ["standard_request_id"],
             "formatter": "standard",
         },
     },
@@ -158,13 +148,11 @@ def _set_formatter(logging_config: dict) -> None:
     if "formatter" in logging_config:
         formatter = logging_config["formatter"]
         _logger["handlers"]["console"]["formatter"] = formatter
-        _logger["handlers"]["console"]["filters"] = [formatter + "_request_id"]
 
 
 def _set_root_logger(logging_config: dict) -> None:
     if "root" in logging_config:
         _logger["root"]["level"] = logging_config["root"]
-
 
 def _set_loggers(logging_config: dict) -> None:
     loggers = [
@@ -177,35 +165,6 @@ def _set_loggers(logging_config: dict) -> None:
             _logger["loggers"][logger]["level"] = level
         else:
             _logger["loggers"][logger] = {"level": level}
-
-
-class StandardRequestIdFilter(logging.Filter):
-    """
-    Class used to include the http request id into the logged record, used with
-    standard formatter.
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        request_id = http_audit.get_request_id()
-        # request_id is only in the log when existing
-        record.request_id = "[" + request_id + "] " if request_id else ""
-        # logger and function name concatenated and truncated from the left
-        record.name_with_func = (record.name + "." + record.funcName)[-40:]
-        return True
-
-
-class JsonRequestIdFilter(logging.Filter):
-    """
-    Class used to include the http request id into the logged record, used with json formatter.
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        # request_id is only added when existing
-        request_id = http_audit.get_request_id()
-        if request_id:
-            record.request_id = request_id
-            record.correlationId = request_id
-        return True
 
 
 class MessageContainsFilter(logging.Filter):

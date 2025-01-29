@@ -155,26 +155,6 @@ def define_config(start_time: datetime.datetime, end_time: datetime.datetime) ->
 
     return configuration
 
-
-# mypy: ignore-errors
-def get_time_settings(config) -> dict:
-    """
-    Retrieve time settings from config.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        dict: Dictionary with time settings.
-    """
-    return {
-        "tincr": config.main.time_settings.tincr,
-        "tdelta": config.main.time_settings.tdelta,
-        "tfreq_f": config.main.time_settings.tfreq_f,
-        "tfreq": config.main.time_settings.tfreq,
-    }
-
-
 def parse_forecast_datetime(date_str: str, time_str: str) -> datetime.datetime:
     """
     Parse forecast date and time strings into a datetime object.
@@ -190,27 +170,26 @@ def parse_forecast_datetime(date_str: str, time_str: str) -> datetime.datetime:
 
 
 def generate_forecast_times(
-    start_times: list[datetime.datetime], time_settings: dict
-) -> tuple[list[list[str]], list[list[datetime.datetime]], set[str]]:
+    start_times: list[datetime.datetime]
+) -> tuple[list[list[str]], list[list[datetime.datetime]], set[datetime.datetime]]:
     """
     Generates a list of all required forecasts for Flexpart simulations.
 
     Args:
         start_times (list[datetime]): List of Flexpart run start reference times.
-        time_settings (dict[str, int]): Configuration containing 'tdelta' (total forecast duration in hours),
-            'tincr' (increment step in hours), and 'tfreq' (frequency interval).
+
     Returns:
-        tuple[list[list[str]], list[list[datetime]], set[str]]:
+        tuple[list[list[str]], list[list[datetime]], set[datime]]:
             - all_input_forecasts: A nested list where each sublist contains forecast labels
               for each Flexpart run in the format "{reference_time}_{step}".
             - all_flexpart_leadtimes: A nested list where each sublist contains datetime objects
               representing the leadtimes (reference_time + step) for each Flexpart run.
-            - all_input_forecasts_set: A set of unique forecasts in the format "{reference_time}_{step}"
+            - all_input_forecasts_set: A set of unique forecasts reference datetime objects
               required for Flexpart simulations.
     """
-    time_delta = time_settings['tdelta']
-    time_increment = time_settings['tincr']
-    run_frequency = time_settings['tfreq']
+    time_delta = CONFIG.main.time_settings.tdelta
+    time_increment = CONFIG.main.time_settings.tincr
+    run_frequency = CONFIG.main.time_settings.tfreq
 
     all_input_forecasts_set = set()
     all_input_forecasts = []
@@ -220,25 +199,11 @@ def generate_forecast_times(
         lead_times = [start_time + datetime.timedelta(hours=i) for i in range(0, time_delta, time_increment)]
         input_forecasts = [generate_forecast_label(lt, run_frequency) for lt in lead_times]
 
-        all_input_forecasts_set.update(input_forecasts)
+        all_input_forecasts_set.update(datetime.datetime.strptime(input_forecasts[:-2], "%Y%m%d%H%M"))
         all_input_forecasts.append(input_forecasts)
         all_flexpart_leadtimes.append(lead_times)
 
     return all_input_forecasts, all_flexpart_leadtimes, all_input_forecasts_set
-
-
-
-def strip_lead_time(forecast: str) -> datetime.datetime:
-    """
-    Strip lead time from forecast string.
-
-    Args:
-        forecast (str): Forecast reference time with lead time.
-
-    Returns:
-        datetime.datetime: Forecast datetime without lead time.
-    """
-    return datetime.datetime.strptime(forecast[:-2], "%Y%m%d%H%M")
 
 
 def create_flexpart_configs(
@@ -283,25 +248,21 @@ def run_aggregator(date: str, time: str, step: int) -> list[dict]:
     """
     time_settings = get_time_settings(CONFIG)
 
-    DBtable = os.path.join(CONFIG.main.db.path, CONFIG.main.db.name)
-    with connect_db(DBtable) as conn:
+    db_path = os.path.join(CONFIG.main.db.path, CONFIG.main.db.name)
+    with connect_db(db_path) as conn:
         try:
             forecast_reftime = parse_forecast_datetime(date, time)
             start_times = generate_flexpart_start_times(
                 forecast_reftime,
                 step,
-                time_settings["tdelta"],
-                time_settings["tfreq_f"]
+                CONFIG.main.time_settings.tdelta,
+                CONFIG.main.time_settings.tfreq_f
             )
 
-            input_forecasts, flexpart_leadtimes, input_forecasts_set = generate_forecast_times(
-                start_times, time_settings
-            )
+            input_forecasts, flexpart_leadtimes, input_forecasts_set = generate_forecast_times(start_times)
 
             # Retrieve processed forecasts from the database
-            processed_forecasts = fetch_processed_forecasts(
-                conn, {strip_lead_time(forecast) for forecast in input_forecasts_set}
-            )
+            processed_forecasts = fetch_processed_forecasts(conn, input_forecasts_set)
 
             # Create input configurations if processed forecasts are ready
             configs = create_flexpart_configs(

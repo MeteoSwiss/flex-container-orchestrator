@@ -1,0 +1,19 @@
+logging:
+  root_log_level: INFO
+  formatter: "standard"
+  child_log_levels:
+    mchpy: DEBUG
+main:
+  app_name: flex-container-orchestrator
+  db:
+    path: /home/nburgdor/.sqlite/
+    name: sqlite3-db
+  time_settings:
+    # Number of hours between timesteps
+    tincr: 1
+    # Number of timesteps to run Flexpart with (temporarily set to 6 timesteps but operational config is 90)
+    tdelta: 6
+    # Frequency of Flexpart runs in hours
+    tfreq_f: 6
+    # Frequency of IFS runs in hours
+    tfreq: 6

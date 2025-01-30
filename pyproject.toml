@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "flex-container-orchestrator"
+# Keep only Major and Minor version in this configuration,
+# the patch version is calculated when releasing the library
+version = "1.0"
+description = "The flex-container-orchestrator manages Aviso notifications and triggers the flexprep and flexpart containers, as well as the file aggregation script for Flexpart."
+authors = ["Nina Burgdorfer <nina.burgdorfer@meteoswiss.ch>"]
+readme = "README.rst"
+include = ["HISTORY.rst"]
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+pydantic = "^2.9.2"
+pydantic-settings = "^2.6.0"
+python-json-logger = "^2.0.7"
+boto3 = "^1.35.48"
+load-dotenv = "^0.1.0"
+python-dotenv = "^1.0.1"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.10.0"
+pydata-sphinx-theme = "^0.15.2"
+pylint = "^3.0.2"
+pytest = "^8.2.1"
+pytest-cov = "^5.0.0"
+sphinx = "^8.0.2"
+sphinx-autoapi = "^3.1.0"
+yapf = "^0.40.2"
+autodoc-pydantic = "^2.2.0"
+
+[tool.yapf]
+based_on_style = "pep8"
+column_limit = "120"
+
+[tool.pylint.master]
+disable = [
+    'C0114', # missing-module-docstring
+    'C0115', # missing-class-docstring
+    'C0116', # missing-function-docstring
+    'W0511', # fix me or to-do comments are already covered by SonarQube
+]
+
+[tool.pylint.format]
+# Maximum number of lines in a module.
+max-line-length = 120
+
+[tool.pylint.design]
+# Minimum number of public methods for a class (see R0903).
+min-public-methods = 0
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_defs = true
+
+[tool.coverage.run]
+omit = ["test/**",  "doc/**"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

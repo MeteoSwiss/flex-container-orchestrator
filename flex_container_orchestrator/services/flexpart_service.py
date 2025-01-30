@@ -5,7 +5,7 @@ import sys
 
 from flex_container_orchestrator.domain.lead_time_aggregator import run_aggregator
 from flex_container_orchestrator import CONFIG
-
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,14 @@ def login_ecr():
     """
     Log in to AWS ECR by retrieving the login password and passing it to Docker login.
     """
-    region = os.getenv("AWS_REGION", "eu-central-2")
-    repo_url = f"{os.getenv('AWS_ACCOUNT_ID')}.dkr.ecr.{region}.amazonaws.com"
+    load_dotenv()
 
-    if "None" in repo_url:
+    region = os.getenv("AWS_REGION", "eu-central-2")
+    AWS_ACCOUNT_ID=os.getenv('AWS_ACCOUNT_ID')
+    if not AWS_ACCOUNT_ID:
         raise ValueError("AWS_ACCOUNT_ID environment variable is not set")
+
+    repo_url=f"{AWS_ACCOUNT_ID}.dkr.ecr.{region}.amazonaws.com"
     try:
         # Step 1: Get the ECR login password
         login_command = ["aws", "ecr", "get-login-password", "--region", region, "--profile", "ecr-readonly"]

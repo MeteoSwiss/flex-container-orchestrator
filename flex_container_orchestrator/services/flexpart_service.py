@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -27,7 +28,9 @@ def login_ecr():
     """
     Log in to AWS ECR by retrieving the login password and passing it to Docker login.
     """
-    load_dotenv()
+
+    load_dotenv(dotenv_path=Path(".env"),)
+    load_dotenv(dotenv_path=Path(".env.secrets"))
 
     region = os.getenv("AWS_REGION", "eu-central-2")
     AWS_ACCOUNT_ID=os.getenv('AWS_ACCOUNT_ID')
@@ -65,12 +68,28 @@ def main(date: str, location: str, time: str, step: str) -> None:
     # Retrieve ECR login password and log in to Docker
     login_ecr()
 
-    # Set environment variables required by Docker Compose
-    os.environ["DATE"] = date
-    os.environ["LOCATION"] = location
-    os.environ["TIME"] = time
-    os.environ["STEP"] = step
-    os.environ["MAIN__DB_PATH"] = CONFIG.main.db.path
+    # Set only what you know so far
+    env_vars = {
+        "DATE": date,
+        "TIME": time,
+        "STEP": step,
+        "LOCATION": location,
+        "MAIN__DB_PATH": CONFIG.main.db.path,
+
+        # Placeholders for later-use vars to suppress warnings
+        "RELEASE_SITE_NAME": "",
+        "IBDATE": "",
+        "IBTIME": "",
+        "IEDATE": "",
+        "IETIME": "",
+        "FORECAST_DATETIME": "",
+        "PRESET": ""
+    }
+
+    # Write to .env
+    with open(".env", "w") as f:
+        for key, value in env_vars.items():
+            f.write(f"{key}={value}\n")
 
     # ====== Run flexprep ======
     try:
@@ -96,14 +115,19 @@ def main(date: str, location: str, time: str, step: str) -> None:
 
     # ====== Run Flexpart and Pyflexplot ======
     for config in configurations:
-        # Set environment variables for the current configuration
-        os.environ["IBDATE"] = config["IBDATE"]
-        os.environ["IBTIME"] = config["IBTIME"]
-        os.environ["IEDATE"] = config["IEDATE"]
-        os.environ["IETIME"] = config["IETIME"]
-        os.environ["RELEASE_SITE_NAME"] = "BEZ"
-        os.environ["FORECAST_DATETIME"] = config["FORECAST_DATETIME"]
-        os.environ["PRESET"]  = "opr/ifs-hres-eu/all_pdf"
+        env_vars.update({
+            "RELEASE_SITE_NAME": "BEZ",
+            "IBDATE": config["IBDATE"],
+            "IBTIME": config["IBTIME"],
+            "IEDATE": config["IEDATE"],
+            "IETIME": config["IETIME"],
+            "FORECAST_DATETIME": config["FORECAST_DATETIME"],
+            "PRESET": "opr/ifs-hres-eu/all_pdf"
+        })
+
+        with open(".env", "w") as f:
+            for key, value in env_vars.items():
+                f.write(f"{key}={value}\n")
 
         try:
             # Launch Flexpart using Docker Compose

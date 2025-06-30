@@ -8,28 +8,32 @@
 # Clean up the SQLite database
 rm -rf ~/.sqlite/sqlite3-db
 
-# Get today's date and compute dates for the last three days
-TODAY=$(date -u +"%Y%m%d")
-YESTERDAY=$(date -u -d "yesterday" +"%Y%m%d")
+# Get today's date in full and short year formats
+TODAY_FULL=$(date -u +"%Y%m%d")   # e.g. 20250627
+TODAY_SHORT=$(date -u +"%m%d") # e.g. 0627
 
-# Array of job parameters with dynamic date handling
+# Get yesterday's date in full and short year formats
+YESTERDAY_FULL=$(date -u -d "yesterday" +"%Y%m%d")
+YESTERDAY_SHORT=$(date -u -d "yesterday" +"%m%d")
+
+# Array of job parameters
 jobs=(
-  "--step 00 --date $TODAY --time 00 --location s3://flexpart-input/P1D${TODAY}0000${TODAY}00001"
-  "--step 00 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}00011"
-  "--step 01 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}01001"
-  "--step 02 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}02001"
-  "--step 03 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}03001"
-  "--step 04 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}04001"
-  "--step 05 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}05001"
-  "--step 06 --date $TODAY --time 00 --location s3://flexpart-input/P1S${TODAY}0000${TODAY}06001"
-  "--step 00 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}18001"
-  "--step 00 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}18011"
-  "--step 01 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}19001"
-  "--step 02 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}20001"
-  "--step 03 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}21001"
-  "--step 04 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}22001"
-  "--step 05 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${YESTERDAY}23001"
-  "--step 06 --date $YESTERDAY --time 18 --location s3://flexpart-input/P1S${YESTERDAY}1800${TODAY}00001"
+  "--step 00 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1D${TODAY_SHORT}0000${TODAY_SHORT}00001"
+  "--step 00 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}00011"
+  "--step 01 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}01001"
+  "--step 02 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}02001"
+  "--step 03 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}03001"
+  "--step 04 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}04001"
+  "--step 05 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}05001"
+  "--step 06 --date $TODAY_FULL --time 00 --location s3://flexpart-input/P1S${TODAY_SHORT}0000${TODAY_SHORT}06001"
+  "--step 00 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}18001"
+  "--step 00 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}18011"
+  "--step 01 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}19001"
+  "--step 02 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}20001"
+  "--step 03 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}21001"
+  "--step 04 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}22001"
+  "--step 05 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${YESTERDAY_SHORT}23001"
+  "--step 06 --date $YESTERDAY_FULL --time 18 --location s3://flexpart-input/P1S${YESTERDAY_SHORT}1800${TODAY_SHORT}00001"
 )
 
 # Execute each job

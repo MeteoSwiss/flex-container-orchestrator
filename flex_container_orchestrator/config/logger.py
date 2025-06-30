@@ -21,7 +21,7 @@ _logger: dict = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": "{asctime} {request_id}{levelname:>8s} {process} --- [{threadName:>15s}] {name_with_func:40}: "
+            "format": "{asctime}{levelname:>8s} {process} --- [{threadName:>15s}] {name:40}: "
             "{message}",
             "style": "{",
         },

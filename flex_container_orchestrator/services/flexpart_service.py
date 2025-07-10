@@ -91,6 +91,8 @@ def main(date: str, location: str, time: str, step: str) -> None:
         for key, value in env_vars.items():
             f.write(f"{key}={value}\n")
 
+    load_dotenv(dotenv_path=Path(".env"), override=True)
+
     # ====== Run flexprep ======
     try:
         # Run Docker Compose to launch flexprep
@@ -128,6 +130,8 @@ def main(date: str, location: str, time: str, step: str) -> None:
         with open(".env", "w") as f:
             for key, value in env_vars.items():
                 f.write(f"{key}={value}\n")
+
+        load_dotenv(dotenv_path=Path(".env"), override=True)
 
         try:
             # Launch Flexpart using Docker Compose

@@ -1,6 +1,6 @@
 services:
   flexprep:
-    image: "${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-2.amazonaws.com/numericalweatherpredictions/dispersionmodelling/flexpart-ifs/flexprep:2411.85789914152b732ef17ad65bd7d6e57ecb30ee3d"
+    image: "${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-2.amazonaws.com/dispersionmodelling/flexprep:2507.5c478e1152372ac5102715cf4a2648aa89865f1a"
     volumes:
       - "${MAIN__DB_PATH}:/src/db/"
     command: ["--step", "${STEP}", "--date", "${DATE}", "--time", "${TIME}", "--location", "${LOCATION}"]

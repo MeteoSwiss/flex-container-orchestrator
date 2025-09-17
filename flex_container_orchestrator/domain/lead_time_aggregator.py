@@ -66,7 +66,7 @@ def generate_flexpart_start_times(
 
 def generate_forecast_label(lead_time: datetime.datetime, tfreq: int) -> str:
     """
-    Returns a string in the format "{reference_time}_{step}" based on
+    Returns a string in the format "{reference_time}{step}" based on
     the given lead_time (i.e. forecast reference time + step).
 
     The reference_time corresponds to the latest IFS forecast run for the specified lead time.
@@ -79,7 +79,7 @@ def generate_forecast_label(lead_time: datetime.datetime, tfreq: int) -> str:
 
     Returns:
         str: Forecast reference time (YYYYMMDDHH) followed by the lead time (HH)
-        in the format "{reference_time}_{step}"
+        in the format "{reference_time}{step}"
     """
     if lead_time.hour % tfreq != 0:
         frt_st = lead_time - datetime.timedelta(hours=lead_time.hour % tfreq)
@@ -179,9 +179,9 @@ def generate_forecast_times(
         start_times (list[datetime]): List of Flexpart run start reference times.
 
     Returns:
-        tuple[list[list[str]], list[list[datetime]], set[datime]]:
+        tuple[list[list[str]], list[list[datetime]], set[datetime]]:
             - all_input_forecasts: A nested list where each sublist contains forecast labels
-              for each Flexpart run in the format "{reference_time}_{step}".
+              for each Flexpart run in the format "{reference_time}{step}".
             - all_flexpart_leadtimes: A nested list where each sublist contains datetime objects
               representing the leadtimes (reference_time + step) for each Flexpart run.
             - all_input_forecasts_set: A set of unique forecasts reference datetime objects
@@ -191,17 +191,19 @@ def generate_forecast_times(
     time_increment = CONFIG.main.time_settings.tincr
     run_frequency = CONFIG.main.time_settings.tfreq
 
-    all_input_forecasts_set = set()
     all_input_forecasts = []
     all_flexpart_leadtimes = []
+    all_input_forecasts_set = set()
 
     for start_time in start_times:
         lead_times = [start_time + datetime.timedelta(hours=i) for i in range(0, time_delta, time_increment)]
         input_forecasts = [generate_forecast_label(lt, run_frequency) for lt in lead_times]
 
-        all_input_forecasts_set.update(datetime.datetime.strptime(input_forecasts[:-2], "%Y%m%d%H%M"))
         all_input_forecasts.append(input_forecasts)
         all_flexpart_leadtimes.append(lead_times)
+        all_input_forecasts_set.update(
+            datetime.datetime.strptime(f[:-2], "%Y%m%d%H%M") for f in input_forecasts
+        )
 
     return all_input_forecasts, all_flexpart_leadtimes, all_input_forecasts_set
 
@@ -216,7 +218,7 @@ def create_flexpart_configs(
 
     Args:
         - all_input_forecasts: A nested list where each sublist contains forecast labels
-            for each Flexpart run in the format "{reference_time}_{step}".
+            for each Flexpart run in the format "{reference_time}{step}".
         - all_flexpart_leadtimes: A nested list where each sublist contains datetime objects
             representing the lead times for each Flexpart run.
         - processed_forecasts (set of str): Set of forecasts marked as processed and retrieved from the DB for
@@ -246,7 +248,6 @@ def run_aggregator(date: str, time: str, step: int) -> list[dict]:
     Returns:
         list[dict]: List of configuration dictionaries for Flexpart.
     """
-    time_settings = get_time_settings(CONFIG)
 
     db_path = os.path.join(CONFIG.main.db.path, CONFIG.main.db.name)
     with connect_db(db_path) as conn:

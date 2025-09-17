@@ -1,6 +1,7 @@
 listeners:
-  - event: mars
+  - event: dissemination
     request:
+      destination: S7Y
       class: od
       expver: 0001
       domain: g
